@@ -20,23 +20,23 @@
 
         <!-- Header -->
         <div class="chat-header">
-            <div>
-                <div class="fw-semibold">
+            <div class="chat-header-copy">
+                <div class="chat-header-title fw-semibold">
                     <i class="bi bi-robot"></i> StudioSync AI Assistant
                     {% if active_role == 'ADMIN' %}
                     <span class="chat-role-badge chat-role-admin">Role: Admin</span>
                     {% elif active_role == 'STUDIO' %}
-                    <span class="chat-role-badge chat-role-studio">Role: Studio</span>
+                    <span class="chat-role-badge chat-role-studio">Role: Studio Owner</span>
                     {% else %}
                     <span class="chat-role-badge chat-role-user">Role: User</span>
                     {% endif %}
                 </div>
                 {% if active_role == 'ADMIN' %}
-                <div class="small text-secondary">Admin assistant for moderation, studio verification, booking oversight, and payment monitoring.</div>
+                <div class="chat-header-subtitle chat-header-subtitle-admin">Admin assistant for moderation, studio verification, booking oversight, and payment monitoring.</div>
                 {% elif active_role == 'STUDIO' %}
-                <div class="small text-secondary">Studio assistant for portfolio, bookings, reviews, profile setup, and earnings workflows.</div>
+                <div class="chat-header-subtitle chat-header-subtitle-studio">Studio owner assistant for portfolio, bookings, reviews, profile setup, and earnings workflows.</div>
                 {% else %}
-                <div class="small text-secondary">User assistant for exploring studios, bookings, payments, reviews, and dashboard guidance.</div>
+                <div class="chat-header-subtitle chat-header-subtitle-user">User assistant for exploring studios, bookings, payments, reviews, and dashboard guidance.</div>
                 {% endif %}
             </div>
             <div class="d-flex align-items-center gap-2">

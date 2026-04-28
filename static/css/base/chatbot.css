@@ -41,7 +41,9 @@
     bottom: 80px;
     right: 0;
     width: 480px;
-    height: 650px;
+    height: 480px;
+    max-height: 90vh;
+    box-sizing: border-box;
     background: rgba(15, 23, 42, 0.96);
     backdrop-filter: blur(18px);
     border-radius: 20px;
@@ -122,16 +124,18 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    scrollbar-width: thin;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
 .chat-body::-webkit-scrollbar {
-    width: 6px;
+    width: 0;
+    display: none;
 }
 
 .chat-body::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 6px;
+    background: transparent;
+    display: none;
 }
 
 /* ===============================
@@ -150,7 +154,7 @@
 
 .bot-message {
     align-self: flex-start;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.15);
     color: #fff;
     padding: 10px 14px;
     border-radius: 15px 15px 15px 5px;
@@ -269,8 +273,8 @@
    even when page-specific CSS defines generic .chat-window/.chat-toggle.
 ========================================= */
 :root {
-    --chatbot-window-width: 440px;
-    --chatbot-window-height: 640px;
+    --chatbot-window-width: 420px;
+    --chatbot-window-height: 520px;
     --chatbot-header-gradient: linear-gradient(135deg, #0ea5e9, #14b8a6);
     --chatbot-card-bg: linear-gradient(165deg, rgba(9, 18, 33, 0.96), rgba(14, 26, 44, 0.94));
     --chatbot-outline: rgba(148, 163, 184, 0.25);
@@ -290,13 +294,16 @@
 }
 
 #chatbot-container .chat-window {
-    width: var(--chatbot-window-width);
-    height: var(--chatbot-window-height);
+    /* Responsive width, taller height for better message area */
+    width: min(92vw, var(--chatbot-window-width));
+    height: min(90vh, var(--chatbot-window-height));
+    max-height: 90vh;
     bottom: 84px;
     background: var(--chatbot-card-bg);
     border: 1px solid var(--chatbot-outline);
     border-radius: 22px;
     box-shadow: 0 28px 54px rgba(2, 8, 23, 0.58);
+    overflow-x: hidden;
 }
 
 #chatbot-container .chat-header {
@@ -305,8 +312,58 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+#chatbot-container .chat-header-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+#chatbot-container .chat-header-title {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: #f8fafc;
+    line-height: 1.2;
+}
+
+#chatbot-container .chat-header-subtitle {
+    color: #cbd5e1;
+    font-size: 12px;
+    line-height: 1.45;
+    max-width: 100%;
+}
+
+#chatbot-container .chat-header-subtitle-user {
+    color: rgba(191, 219, 254, 0.95);
+}
+
+#chatbot-container .chat-header-subtitle-studio {
+    color: rgba(167, 243, 208, 0.95);
+}
+
+#chatbot-container .chat-header-subtitle-admin {
+    color: rgba(253, 224, 71, 0.95);
+}
+
 #chatbot-container .chat-body {
     padding: 14px;
+    max-height: calc(100% - 120px);
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+#chatbot-container .chat-body::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+#chatbot-container .chat-body::-webkit-scrollbar-thumb {
+    background: transparent;
+    display: none;
 }
 
 #chatbot-container .user-message,
@@ -341,18 +398,54 @@
     #chatbot-container {
         right: 16px;
         bottom: 16px;
+        --chatbot-window-width: 380px;
+        --chatbot-window-height: 520px;
     }
 
     #chatbot-container .chat-window {
-        width: min(94vw, 410px);
-        height: min(74vh, 620px);
+        width: min(94vw, var(--chatbot-window-width));
+        height: min(86vh, var(--chatbot-window-height));
     }
 }
 
 @media (max-width: 576px) {
+    #chatbot-container {
+        --chatbot-window-width: 360px;
+        --chatbot-window-height: 64vh;
+    }
+
     #chatbot-container .chat-window {
-        width: min(94vw, 420px);
-        height: 72vh;
+        width: min(94vw, var(--chatbot-window-width));
+        height: min(72vh, var(--chatbot-window-height));
         border-radius: 18px;
     }
+}
+
+/* Prevent any horizontal overflow inside chat body and make messages wrap */
+#chatbot-container .chat-body,
+#chatbot-container .chat-window,
+#chatbot-container .chat-input {
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+#chatbot-container .chat-body * {
+    box-sizing: border-box;
+}
+
+#chatbot-container .user-message,
+#chatbot-container .bot-message {
+    max-width: 100%;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+#chatbot-container .chat-suggestions .chat-suggestion {
+    white-space: normal;
+}
+
+#chatbot-container .chat-input input {
+    min-width: 0;
 }

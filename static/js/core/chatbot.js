@@ -59,10 +59,22 @@ function initializeChatbotWidget() {
         chatWindow.classList.toggle('active');
         if (window.innerWidth <= 576 && chatWindow.classList.contains('active')) {
             chatWindow.style.bottom = 'auto';
-            chatWindow.style.top = '70px';
+            // ensure the chat window fits within the viewport on small screens
+            const safeTop = 12; // px from top
+            const safeBottom = 12; // px from bottom
+            const available = Math.max(window.innerHeight - safeTop - safeBottom, 200);
+            chatWindow.style.top = safeTop + 'px';
+            chatWindow.style.maxHeight = available + 'px';
+            // limit chat body so header + input remain visible
+            const headerHeight = chatWindow.querySelector('.chat-header')?.offsetHeight || 64;
+            const inputHeight = chatWindow.querySelector('.chat-input')?.offsetHeight || 66;
+            const bodyMax = Math.max(available - headerHeight - inputHeight - 32, 120);
+            chatBody.style.maxHeight = bodyMax + 'px';
         } else {
             chatWindow.style.bottom = '100px';
             chatWindow.style.top = 'auto';
+            chatWindow.style.maxHeight = '';
+            chatBody.style.maxHeight = '';
         }
 
         if (chatWindow.classList.contains('active') && !historyLoaded) {
@@ -135,7 +147,18 @@ function initializeChatbotWidget() {
             return;
         }
 
-        messages.forEach((entry) => {
+        // Deduplicate messages by (text + timestamp + is_user)
+        const seen = new Set();
+        const uniqueMessages = messages.filter((entry) => {
+            const key = `${entry.message}|${entry.timestamp}|${entry.is_user}`;
+            if (seen.has(key)) {
+                return false; // Skip duplicate
+            }
+            seen.add(key);
+            return true;
+        });
+
+        uniqueMessages.forEach((entry) => {
             const className = entry.is_user ? 'user-message' : 'bot-message';
             appendMessage(className, entry.message || '');
         });

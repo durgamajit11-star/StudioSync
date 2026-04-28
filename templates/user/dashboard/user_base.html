@@ -33,6 +33,7 @@
     <link rel="icon" type="image/png" href="{% static 'images/logo.png' %}">
 
     {% block extra_css %}{% endblock %}
+    <link rel="stylesheet" href="{% static 'css/base/chatbot.css' %}">
 </head>
 
 <body data-role="{{ user.role|default:'' }}" data-perf-endpoint="{% url 'web_vitals_ingest' %}">
