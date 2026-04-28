@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "build": {
+    "env": {
+      "DISABLE_COLLECTSTATIC": "1"
+    }
+  },
+  "env": {
+    "DISABLE_COLLECTSTATIC": "1"
+  },
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "static/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "api/index.py"
+    }
+  ]
+}

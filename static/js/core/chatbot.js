@@ -138,11 +138,15 @@ function initializeChatbotWidget() {
         chatBody.appendChild(suggestions);
     }
 
+    function renderStarterQuestions() {
+        chatBody.appendChild(createMessageElement('bot-message', 'Hello! Ask me anything about StudioSync.'));
+        addSuggestionButtons(roleSuggestions[role] || roleSuggestions.USER);
+    }
+
     function renderHistory(messages) {
         chatBody.innerHTML = '';
+        renderStarterQuestions();
         if (!messages.length) {
-            chatBody.appendChild(createMessageElement('bot-message', '👋 Hello! Ask me anything about StudioSync.'));
-            addSuggestionButtons(roleSuggestions[role] || roleSuggestions.USER);
             scrollToBottom();
             return;
         }
