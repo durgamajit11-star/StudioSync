@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.db.models import Avg, Sum, Count, Min, Max
 from django.db.models.functions import TruncMonth
 from django.http import JsonResponse
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.contrib.sessions.models import Session
 from django.contrib.auth import logout
@@ -23,10 +24,12 @@ from .models import StudioPreference, UserPreference
 from notifications.models import Notification
 
 
+@never_cache
 def landing_page(request):
     return render(request, "landing.html")
 
 
+@never_cache
 def landing_explore_studio(request):
     return render(request, "landing_explore_studio.html")
 

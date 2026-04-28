@@ -1,11 +1,13 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout
 from django.contrib import messages
+from django.views.decorators.cache import never_cache
 from .forms import StyledAuthenticationForm
 from .forms import UserRegisterForm, StudioRegisterForm
 
 
 # ================= AUTH (LOGIN + REGISTER SINGLE PAGE) =================
+@never_cache
 def auth_view(request):
 
     # Redirect already logged-in users
@@ -72,6 +74,7 @@ def auth_view(request):
 
 
 # ================= LOGOUT =================
+@never_cache
 def logout_view(request):
     logout(request)
     return redirect("landing")   # 👈 THIS IS IMPORTANT
