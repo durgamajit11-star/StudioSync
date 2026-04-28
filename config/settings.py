@@ -129,9 +129,30 @@ if DATABASE_URL:
         )
     }
 elif IS_VERCEL:
-    raise ImproperlyConfigured(
-        'DATABASE_URL must be set on Vercel. SQLite is not suitable for login/session storage on serverless deployments.'
-    )
+    # In serverless deployments we prefer a managed Postgres DB. However,
+    # allow falling back to SQLite when an explicit opt-in flag is present
+    # or when rapid recovery is needed. This is NOT recommended for
+    # production because Vercel's serverless filesystem is ephemeral and
+    # session/login data will not persist across invocations.
+    allow_sqlite = env_bool('ALLOW_SQLITE_ON_VERCEL', False)
+    if allow_sqlite:
+        import warnings
+
+        warnings.warn(
+            'ALLOW_SQLITE_ON_VERCEL is enabled — using SQLite on Vercel. '
+            'This is for temporary recovery only; configure a DATABASE_URL soon.',
+            RuntimeWarning,
+        )
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
+    else:
+        raise ImproperlyConfigured(
+            'DATABASE_URL must be set on Vercel. SQLite is not suitable for login/session storage on serverless deployments.'
+        )
 else:
     DATABASES = {
         'default': {
