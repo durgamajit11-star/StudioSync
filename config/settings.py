@@ -128,6 +128,10 @@ if DATABASE_URL:
             ssl_require=env_bool('DB_SSL_REQUIRE', not DEBUG),
         )
     }
+elif IS_VERCEL:
+    raise ImproperlyConfigured(
+        'DATABASE_URL must be set on Vercel. SQLite is not suitable for login/session storage on serverless deployments.'
+    )
 else:
     DATABASES = {
         'default': {
