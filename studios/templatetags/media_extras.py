@@ -18,4 +18,7 @@ def storage_exists(file_field):
     if not name:
         return False
 
-    return default_storage.exists(name)
+    try:
+        return default_storage.exists(name)
+    except Exception:
+        return False
