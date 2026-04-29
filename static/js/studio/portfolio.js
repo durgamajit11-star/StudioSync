@@ -1,17 +1,26 @@
 (function () {
+    const MAX_UPLOAD_BYTES = 3.5 * 1024 * 1024;
+    const MAX_IMAGE_DIMENSION = 1800;
+
+    function blobFromCanvas(canvas, type, quality) {
+        return new Promise(function (resolve) {
+            canvas.toBlob(function (result) {
+                resolve(result);
+            }, type, quality);
+        });
+    }
+
     async function compressImageFile(file) {
         if (!file || !file.type || !file.type.startsWith('image/')) {
             return file;
         }
 
-        if (file.size <= 350 * 1024) {
+        if (file.size <= MAX_UPLOAD_BYTES) {
             return file;
         }
 
         const bitmap = await createImageBitmap(file);
-        const maxWidth = 2200;
-        const maxHeight = 2200;
-        const ratio = Math.min(maxWidth / bitmap.width, maxHeight / bitmap.height, 1);
+        const ratio = Math.min(MAX_IMAGE_DIMENSION / bitmap.width, MAX_IMAGE_DIMENSION / bitmap.height, 1);
         const width = Math.max(1, Math.round(bitmap.width * ratio));
         const height = Math.max(1, Math.round(bitmap.height * ratio));
 
@@ -19,37 +28,65 @@
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
         ctx.drawImage(bitmap, 0, 0, width, height);
+        if (typeof bitmap.close === 'function') {
+            bitmap.close();
+        }
 
-        const outputType = (file.type === 'image/png') ? 'image/png' : 'image/jpeg';
-        const blob = await new Promise(function (resolve) {
-            canvas.toBlob(function (result) {
-                resolve(result || file);
-            }, outputType, 0.82);
-        });
+        const outputType = 'image/jpeg';
+        const qualities = [0.78, 0.68, 0.58, 0.48];
+        let blob = null;
+        for (const quality of qualities) {
+            blob = await blobFromCanvas(canvas, outputType, quality);
+            if (blob && blob.size <= MAX_UPLOAD_BYTES) {
+                break;
+            }
+        }
 
         if (!blob || blob.size >= file.size) {
             return file;
         }
 
-        const extension = outputType === 'image/png' ? '.png' : '.jpg';
         const baseName = (file.name || 'portfolio-image').replace(/\.[^.]+$/, '');
-        return new File([blob], baseName + extension, { type: outputType, lastModified: Date.now() });
+        return new File([blob], baseName + '.jpg', { type: outputType, lastModified: Date.now() });
     }
 
-    async function applyCompressionToForm(form) {
-        const input = form.querySelector('input[name="image"]');
-        if (!input || !input.files || !input.files.length) {
-            return;
+    function updateUploadStatus(form, message) {
+        const statusNode = form.querySelector('[data-upload-status]');
+        if (statusNode) {
+            statusNode.textContent = message;
+        }
+    }
+
+    async function uploadSingleImage(form, file) {
+        const formData = new FormData(form);
+        formData.delete('image');
+        formData.append('image', file, file.name);
+
+        const response = await fetch(form.action || window.location.href, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        let payload = null;
+        try {
+            payload = await response.json();
+        } catch (_error) {
+            payload = null;
         }
 
-        const files = Array.from(input.files);
-        const compressed = await Promise.all(files.map(compressImageFile));
-        const dt = new DataTransfer();
-        compressed.forEach(function (file) {
-            dt.items.add(file);
-        });
-        input.files = dt.files;
+        if (!response.ok || (payload && payload.success === false)) {
+            const message = payload && payload.message
+                ? payload.message
+                : 'Upload failed. Please use smaller images and try again.';
+            throw new Error(message);
+        }
     }
 
     const uploadArea = document.getElementById('uploadArea');
@@ -116,18 +153,32 @@
 
             event.preventDefault();
             const submitBtn = form.querySelector('button[type="submit"]');
+            const originalButtonText = submitBtn ? submitBtn.innerHTML : '';
             if (submitBtn) {
                 submitBtn.disabled = true;
             }
 
             try {
-                await applyCompressionToForm(form);
-                form.submit();
+                const files = Array.from(input.files);
+                for (let index = 0; index < files.length; index += 1) {
+                    updateUploadStatus(form, 'Preparing ' + (index + 1) + ' of ' + files.length + '...');
+                    const compressedFile = await compressImageFile(files[index]);
+                    if (compressedFile.size > MAX_UPLOAD_BYTES) {
+                        throw new Error('One image is still too large after compression. Please choose an image under 4MB.');
+                    }
+
+                    updateUploadStatus(form, 'Uploading ' + (index + 1) + ' of ' + files.length + '...');
+                    await uploadSingleImage(form, compressedFile);
+                }
+                updateUploadStatus(form, 'Upload complete. Refreshing gallery...');
+                window.location.reload();
             } catch (error) {
                 if (submitBtn) {
                     submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalButtonText;
                 }
-                alert('Could not compress images. Please try again.');
+                updateUploadStatus(form, error.message || 'Upload failed. Please try again.');
+                alert(error.message || 'Upload failed. Please try again.');
             }
         });
     }

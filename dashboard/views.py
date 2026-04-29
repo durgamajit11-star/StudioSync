@@ -938,10 +938,12 @@ def studio_portfolio(request):
         return redirect('studio_dashboard')
 
     if request.method == 'POST':
+        is_ajax_upload = request.headers.get('x-requested-with') == 'XMLHttpRequest'
         images = request.FILES.getlist('image')
         caption = (request.POST.get('description') or request.POST.get('caption') or '').strip()
         category = (request.POST.get('category') or 'other').strip().lower()
         tags = (request.POST.get('tags') or '').strip()
+        max_image_size = 4 * 1024 * 1024
 
         allowed_categories = {'wedding', 'product', 'fashion', 'other'}
         if category not in allowed_categories:
@@ -950,6 +952,13 @@ def studio_portfolio(request):
         if images:
             created = 0
             for image in images:
+                if image.size > max_image_size:
+                    message = 'Each portfolio image must be under 4MB. Please choose smaller images or upload fewer at a time.'
+                    messages.error(request, message)
+                    if is_ajax_upload:
+                        return JsonResponse({'success': False, 'message': message}, status=413)
+                    return redirect('studio_portfolio')
+
                 base_caption = caption
                 if not base_caption:
                     raw_name = (image.name or 'Portfolio Photo').rsplit('.', 1)[0]
@@ -966,16 +975,24 @@ def studio_portfolio(request):
                     created += 1
                 except Exception as exc:
                     logger.exception('Portfolio image upload failed for studio_id=%s', studio.id)
+                    message = 'Unable to upload this image. Please check Cloudinary configuration and try again.'
                     messages.error(
                         request,
-                        'Unable to upload this image. Please check Cloudinary configuration and try again.'
+                        message
                     )
+                    if is_ajax_upload:
+                        return JsonResponse({'success': False, 'message': message}, status=500)
                     return redirect('studio_portfolio')
 
             messages.success(request, f'Uploaded {created} photo(s) successfully!')
+            if is_ajax_upload:
+                return JsonResponse({'success': True, 'created': created})
             return redirect('studio_portfolio')
         else:
-            messages.error(request, 'Please select at least one image to upload.')
+            message = 'Please select at least one image to upload.'
+            messages.error(request, message)
+            if is_ajax_upload:
+                return JsonResponse({'success': False, 'message': message}, status=400)
 
     portfolios = Portfolio.objects.filter(studio=studio).order_by('-uploaded_at')
     total_photos = portfolios.count()

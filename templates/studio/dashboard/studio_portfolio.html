@@ -98,7 +98,7 @@
                     <button type="submit" class="btn btn-primary w-100">
                         <i class="bi bi-upload"></i> Upload Photo
                     </button>
-                    <small class="text-muted d-block mt-2" id="quickUploadFileName">No file selected</small>
+                    <small class="text-muted d-block mt-2" id="quickUploadFileName" data-upload-status>No file selected</small>
                 </div>
             </form>
         </div>
@@ -222,7 +222,7 @@
                     <div class="mb-3">
                         <label class="form-label">Select Photo</label>
                         <input type="file" name="image" class="form-control" accept="image/*" multiple required>
-                        <small class="text-muted">JPG, PNG, WEBP (recommended under 5MB)</small>
+                        <small class="text-muted" data-upload-status>JPG, PNG, WEBP. Multiple photos are uploaded one by one.</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Caption</label>
