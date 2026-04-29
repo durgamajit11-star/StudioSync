@@ -32,6 +32,38 @@ function initializeChatbotWidget() {
     let historyLoaded = false;
     let sending = false;
 
+    function fitMobileChatWindow() {
+        if (!chatWindow.classList.contains('active')) {
+            return;
+        }
+
+        if (window.innerWidth > 576) {
+            chatWindow.style.top = '';
+            chatWindow.style.right = '';
+            chatWindow.style.bottom = '';
+            chatWindow.style.left = '';
+            chatWindow.style.height = '';
+            chatWindow.style.maxHeight = '';
+            chatBody.style.maxHeight = '';
+            return;
+        }
+
+        const viewportHeight = window.visualViewport?.height || window.innerHeight;
+        const safeInset = 10;
+        const availableHeight = Math.max(viewportHeight - (safeInset * 2), 280);
+
+        chatWindow.style.top = safeInset + 'px';
+        chatWindow.style.right = safeInset + 'px';
+        chatWindow.style.bottom = safeInset + 'px';
+        chatWindow.style.left = safeInset + 'px';
+        chatWindow.style.height = availableHeight + 'px';
+        chatWindow.style.maxHeight = availableHeight + 'px';
+
+        const headerHeight = chatWindow.querySelector('.chat-header')?.offsetHeight || 58;
+        const inputHeight = chatWindow.querySelector('.chat-input')?.offsetHeight || 62;
+        chatBody.style.maxHeight = Math.max(availableHeight - headerHeight - inputHeight, 140) + 'px';
+    }
+
     const roleSuggestions = {
         USER: [
             'What can I do on this platform?',
@@ -57,22 +89,15 @@ function initializeChatbotWidget() {
 
     function toggleChat() {
         chatWindow.classList.toggle('active');
-        if (window.innerWidth <= 576 && chatWindow.classList.contains('active')) {
-            chatWindow.style.bottom = 'auto';
-            // ensure the chat window fits within the viewport on small screens
-            const safeTop = 12; // px from top
-            const safeBottom = 12; // px from bottom
-            const available = Math.max(window.innerHeight - safeTop - safeBottom, 200);
-            chatWindow.style.top = safeTop + 'px';
-            chatWindow.style.maxHeight = available + 'px';
-            // limit chat body so header + input remain visible
-            const headerHeight = chatWindow.querySelector('.chat-header')?.offsetHeight || 64;
-            const inputHeight = chatWindow.querySelector('.chat-input')?.offsetHeight || 66;
-            const bodyMax = Math.max(available - headerHeight - inputHeight - 32, 120);
-            chatBody.style.maxHeight = bodyMax + 'px';
+
+        if (chatWindow.classList.contains('active')) {
+            fitMobileChatWindow();
         } else {
-            chatWindow.style.bottom = '100px';
-            chatWindow.style.top = 'auto';
+            chatWindow.style.top = '';
+            chatWindow.style.right = '';
+            chatWindow.style.bottom = '';
+            chatWindow.style.left = '';
+            chatWindow.style.height = '';
             chatWindow.style.maxHeight = '';
             chatBody.style.maxHeight = '';
         }
@@ -268,6 +293,9 @@ function initializeChatbotWidget() {
     });
 
     chatClearBtn?.addEventListener('click', clearHistory);
+    window.addEventListener('resize', fitMobileChatWindow);
+    window.addEventListener('orientationchange', fitMobileChatWindow);
+    window.visualViewport?.addEventListener('resize', fitMobileChatWindow);
 }
 
 if (document.readyState === 'loading') {

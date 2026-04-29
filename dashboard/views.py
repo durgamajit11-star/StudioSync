@@ -15,6 +15,7 @@ from django.utils import timezone
 from django.utils.timesince import timesince
 from decimal import Decimal, InvalidOperation
 from urllib.parse import quote
+import logging
 import json
 import re
 from datetime import datetime, timedelta
@@ -22,6 +23,9 @@ from studios.models import Studio, Portfolio, Review, Service
 from django.db.models import Q 
 from .models import StudioPreference, UserPreference
 from notifications.models import Notification
+
+
+logger = logging.getLogger(__name__)
 
 
 @never_cache
@@ -951,14 +955,22 @@ def studio_portfolio(request):
                     raw_name = (image.name or 'Portfolio Photo').rsplit('.', 1)[0]
                     base_caption = raw_name.replace('_', ' ').replace('-', ' ').strip().title() or 'Portfolio Photo'
 
-                Portfolio.objects.create(
-                    studio=studio,
-                    image=image,
-                    caption=base_caption[:255],
-                    category=category,
-                    tags=tags[:255],
-                )
-                created += 1
+                try:
+                    Portfolio.objects.create(
+                        studio=studio,
+                        image=image,
+                        caption=base_caption[:255],
+                        category=category,
+                        tags=tags[:255],
+                    )
+                    created += 1
+                except Exception as exc:
+                    logger.exception('Portfolio image upload failed for studio_id=%s', studio.id)
+                    messages.error(
+                        request,
+                        'Unable to upload this image. Please check Cloudinary configuration and try again.'
+                    )
+                    return redirect('studio_portfolio')
 
             messages.success(request, f'Uploaded {created} photo(s) successfully!')
             return redirect('studio_portfolio')

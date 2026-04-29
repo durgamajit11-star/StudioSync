@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import warnings
 from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 
@@ -86,7 +87,14 @@ INSTALLED_APPS = [
 ]
 
 CLOUDINARY_URL = env_cloudinary_url()
-USE_CLOUDINARY_MEDIA = env_bool('USE_CLOUDINARY_MEDIA', bool(CLOUDINARY_URL)) and CLOUDINARY_URL.startswith('cloudinary://')
+cloudinary_requested = env_bool('USE_CLOUDINARY_MEDIA', bool(CLOUDINARY_URL))
+USE_CLOUDINARY_MEDIA = cloudinary_requested and CLOUDINARY_URL.startswith('cloudinary://')
+if cloudinary_requested and not USE_CLOUDINARY_MEDIA:
+    warnings.warn(
+        'USE_CLOUDINARY_MEDIA is enabled but CLOUDINARY_URL is missing or invalid. '
+        'Expected format: cloudinary://API_KEY:API_SECRET@CLOUD_NAME',
+        RuntimeWarning,
+    )
 if USE_CLOUDINARY_MEDIA:
     INSTALLED_APPS.insert(INSTALLED_APPS.index('django.contrib.staticfiles'), 'cloudinary_storage')
     INSTALLED_APPS.append('cloudinary')
