@@ -21,6 +21,15 @@ def env_bool(name, default=False):
         return default
     return value.strip().lower() in {'1', 'true', 'yes', 'on'}
 
+
+def env_cloudinary_url():
+    value = os.getenv('CLOUDINARY_URL', '').strip().strip('"').strip("'")
+    if value.upper().startswith('CLOUDINARY_URL='):
+        value = value.split('=', 1)[1].strip().strip('"').strip("'")
+    if value:
+        os.environ['CLOUDINARY_URL'] = value
+    return value
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -76,7 +85,8 @@ INSTALLED_APPS = [
     'api',
 ]
 
-USE_CLOUDINARY_MEDIA = env_bool('USE_CLOUDINARY_MEDIA', bool(os.getenv('CLOUDINARY_URL')))
+CLOUDINARY_URL = env_cloudinary_url()
+USE_CLOUDINARY_MEDIA = env_bool('USE_CLOUDINARY_MEDIA', bool(CLOUDINARY_URL)) and CLOUDINARY_URL.startswith('cloudinary://')
 if USE_CLOUDINARY_MEDIA:
     INSTALLED_APPS.insert(INSTALLED_APPS.index('django.contrib.staticfiles'), 'cloudinary_storage')
     INSTALLED_APPS.append('cloudinary')
