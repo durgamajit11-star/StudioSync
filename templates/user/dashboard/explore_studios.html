@@ -1,5 +1,5 @@
 {% extends "user/dashboard/user_base.html" %}
-{% load static %}
+{% load static media_extras %}
 
 {% block title %}Explore Studios | StudioSync{% endblock %}
 
@@ -96,7 +96,7 @@
             {% for studio in featured_studios %}
             <article class="studio-card premium-card">
                 <div class="studio-media">
-                    {% if studio.profile_image %}
+                    {% if studio.profile_image|storage_exists %}
                     <img src="{{ studio.profile_image.url }}" alt="{{ studio.studio_name }}" class="studio-image">
                     {% else %}
                     <div class="studio-fallback">
@@ -156,7 +156,7 @@
             {% for studio in studios %}
             <article class="studio-card compact-card">
                 <div class="studio-media compact-media">
-                    {% if studio.profile_image %}
+                    {% if studio.profile_image|storage_exists %}
                     <img src="{{ studio.profile_image.url }}" alt="{{ studio.studio_name }}" class="studio-image">
                     {% else %}
                     <div class="studio-fallback compact-fallback">

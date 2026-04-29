@@ -1,5 +1,5 @@
 {% extends "studio/dashboard/studio_base.html" %}
-{% load static %}
+{% load static media_extras %}
 
 {% block title %}Studio Profile Settings{% endblock %}
 
@@ -38,7 +38,7 @@
 
                 <div class="profile-summary">
                     <div class="profile-avatar">
-                        {% if user.profile_image %}
+                        {% if user.profile_image|storage_exists %}
                         <img src="{{ user.profile_image.url }}" alt="Profile" id="avatarPreview" class="avatar-image">
                         {% else %}
                         <img src="https://ui-avatars.com/api/?background=0d6efd&color=fff&name={{ user.username }}" alt="Profile" id="avatarPreview" class="avatar-image">
@@ -204,7 +204,7 @@
                     <div class="form-group form-full">
                         <label>Studio Cover Image</label>
                         <input type="file" name="studio_cover_image" class="form-control" id="studioCoverInput" accept="image/*">
-                        {% if studio.profile_image %}
+                        {% if studio.profile_image|storage_exists %}
                         <img src="{{ studio.profile_image.url }}" class="cover-preview" id="studioCoverPreview" alt="Studio cover">
                         {% else %}
                         <img src="" class="cover-preview d-none" id="studioCoverPreview" alt="Studio cover preview">

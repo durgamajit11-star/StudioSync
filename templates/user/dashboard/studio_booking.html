@@ -1,5 +1,5 @@
 {% extends "user/dashboard/user_base.html" %}
-{% load static %}
+{% load static media_extras %}
 
 {% block title %}Book {{ selected_studio.studio_name }} | StudioSync{% endblock %}
 
@@ -16,7 +16,7 @@
         <a href="{% url 'studios:studio_detail' selected_studio.id %}" class="btn btn-outline-light btn-sm">Back to Studio</a>
     </div>
 
-    {% if selected_studio.profile_image %}
+    {% if selected_studio.profile_image|storage_exists %}
     <div class="mb-3">
         <img src="{{ selected_studio.profile_image.url }}" alt="{{ selected_studio.studio_name }} cover"
              class="w-100 rounded-3" style="max-height: 260px; object-fit: cover; border: 1px solid rgba(148, 163, 184, 0.26);">

@@ -1,5 +1,5 @@
 {% extends "user/dashboard/user_base.html" %}
-{% load static %}
+{% load static media_extras %}
 
 {% block title %}{{ studio.studio_name }} | Studio Details{% endblock %}
 
@@ -48,7 +48,7 @@
     </div>
 
     <div class="hero mb-3">
-        {% if studio.profile_image %}
+        {% if studio.profile_image|storage_exists %}
         <img src="{{ studio.profile_image.url }}" alt="{{ studio.studio_name }}">
         {% else %}
         <div class="w-100 h-100 d-flex align-items-center justify-content-center">
@@ -100,7 +100,13 @@
                     {% for item in portfolios %}
                     <div class="col-md-4">
                         <div class="portfolio-item h-100 overflow-hidden">
+                            {% if item.image|storage_exists %}
                             <img src="{{ item.image.url }}" alt="Portfolio">
+                            {% else %}
+                            <div class="w-100 h-100 d-flex align-items-center justify-content-center">
+                                <i class="bi bi-image" style="font-size: 2rem; opacity: 0.35;"></i>
+                            </div>
+                            {% endif %}
                             {% if item.caption %}<div class="p-2 small text-secondary">{{ item.caption }}</div>{% endif %}
                         </div>
                     </div>
@@ -111,7 +117,7 @@
                     {% for item in studio_images %}
                     <div class="col-md-4">
                         <div class="portfolio-item h-100 overflow-hidden">
-                            {% if item.image %}
+                            {% if item.image|storage_exists %}
                             <img src="{{ item.image.url }}" alt="Gallery">
                             {% elif item.image_url %}
                             <img src="{{ item.image_url }}" alt="Gallery">
@@ -214,7 +220,7 @@
                 <div class="d-flex flex-column gap-2">
                     {% for item in related_studios %}
                     <article class="related-item">
-                        {% if item.profile_image %}
+                        {% if item.profile_image|storage_exists %}
                         <img src="{{ item.profile_image.url }}" alt="{{ item.studio_name }}">
                         {% endif %}
                         <div class="pt-2">

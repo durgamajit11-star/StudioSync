@@ -1,5 +1,5 @@
 {% extends "user/dashboard/user_base.html" %}
-{% load static %}
+{% load static media_extras %}
 
 {% block title %}Profile{% endblock %}
 
@@ -39,7 +39,7 @@
             <div class="card-body" id="profileInfoBody">
                 <div class="profile-summary">
                     <div class="profile-avatar">
-                        {% if user.profile_image %}
+                        {% if user.profile_image|storage_exists %}
                         <img src="{{ user.profile_image.url }}" class="avatar-image" alt="{{ user.get_full_name|default:user.username }} profile photo">
                         {% else %}
                         <img src="https://via.placeholder.com/120/4f46e5/ffffff?text={{ user.username|slice:':1'|upper }}" class="avatar-image" alt="Default profile photo">

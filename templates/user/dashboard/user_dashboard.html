@@ -1,5 +1,5 @@
 {% extends "user/dashboard/user_base.html" %}
-{% load static %}
+{% load static media_extras %}
 
 {% block title %}User Dashboard{% endblock %}
 
@@ -109,7 +109,7 @@
             <div class="col studio-item" data-city="{{ studio.location|lower }}" data-type="{{ studio.specializations|default:''|lower }}" data-rating="{{ studio.rating|default:0 }}" data-price="{{ studio.price_bucket }}">
                 <div class="studio-card">
                     <div class="studio-image-wrapper">
-                        {% if studio.profile_image %}
+                        {% if studio.profile_image|storage_exists %}
                         <img src="{{ studio.profile_image.url }}" alt="{{ studio.studio_name }}" class="studio-image">
                         {% else %}
                         <img src="{% static 'images/s1.png' %}" alt="{{ studio.studio_name }}" class="studio-image">

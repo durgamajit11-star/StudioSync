@@ -1,5 +1,5 @@
 {% extends "studio/dashboard/studio_base.html" %}
-{% load static %}
+{% load static media_extras %}
 
 {% block title %}Portfolio Gallery{% endblock %}
 
@@ -134,12 +134,21 @@
                 {% for portfolio in portfolios %}
                 <article class="gallery-card" data-photo-id="{{ portfolio.id }}" data-caption="{{ portfolio.caption|default:''|lower }}" data-date="{{ portfolio.uploaded_at|date:'U' }}" data-category="{{ portfolio.category|default:'other' }}" data-tags="{{ portfolio.tags|default:''|lower }}">
                     <div class="gallery-thumb">
+                        {% if portfolio.image|storage_exists %}
                         <img src="{{ portfolio.image.url }}" alt="{{ portfolio.caption }}" loading="lazy">
+                        {% else %}
+                        <div class="empty-state h-100 m-0">
+                            <i class="bi bi-image"></i>
+                            <p class="mb-0">Image file is missing from storage.</p>
+                        </div>
+                        {% endif %}
                         <div class="gallery-overlay">
+                            {% if portfolio.image|storage_exists %}
                             <button class="btn btn-sm btn-light preview-photo-btn" type="button" data-id="{{ portfolio.id }}" data-image="{{ portfolio.image.url }}" data-caption="{{ portfolio.caption|default:'Untitled work' }}" data-date="{{ portfolio.uploaded_at|date:'M d, Y - h:i A' }}" data-tags="{{ portfolio.tags|default:'' }}">
                                 <i class="bi bi-eye"></i>
                             </button>
                             <a href="{{ portfolio.image.url }}" download class="btn btn-sm btn-light"><i class="bi bi-download"></i></a>
+                            {% endif %}
                             <form method="POST" action="{% url 'delete_photo' portfolio.id %}" class="d-inline" onsubmit="return confirm('Delete this photo from portfolio?');">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
