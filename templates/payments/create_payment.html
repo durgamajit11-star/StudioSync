@@ -26,10 +26,25 @@
             <div class="meta-line"><span>Time</span><strong>{{ booking.time_window_display }}</strong></div>
             <div class="meta-line"><span>Duration</span><strong>{{ booking.duration_display }}</strong></div>
             <div class="meta-line"><span>Booking Status</span><strong>{{ booking.status }}</strong></div>
-            <div class="meta-line"><span>Amount</span><strong>₹ {{ booking.amount }}</strong></div>
+            <div class="meta-line"><span>Amount</span><strong>&#8377; {{ booking.amount }}</strong></div>
+            <div class="meta-line"><span>Gateway</span><strong>{{ gateway.provider }}</strong></div>
 
             <hr class="border-secondary">
 
+            {% if gateway.enabled %}
+            <div class="alert alert-info small">
+                Gateway order is ready. Complete payment in Razorpay and StudioSync will verify it before confirming your booking.
+            </div>
+            <button class="btn btn-info w-100" type="button" id="razorpayButton">
+                <i class="bi bi-shield-check"></i> Pay &#8377; {{ booking.amount }}
+            </button>
+            <form method="post" action="{% url 'payments:razorpay_checkout_complete' payment.id %}" id="razorpayResultForm" class="d-none">
+                {% csrf_token %}
+                <input type="hidden" name="razorpay_order_id" id="razorpayOrderId">
+                <input type="hidden" name="razorpay_payment_id" id="razorpayPaymentId">
+                <input type="hidden" name="razorpay_signature" id="razorpaySignature">
+            </form>
+            {% else %}
             <form method="post" id="paymentForm">
                 {% csrf_token %}
 
@@ -57,12 +72,20 @@
                 </div>
 
                 <button class="btn btn-info w-100" type="submit">
-                    <i class="bi bi-shield-check"></i> Pay ₹ {{ booking.amount }}
+                    <i class="bi bi-shield-check"></i> Pay &#8377; {{ booking.amount }}
                 </button>
             </form>
+            {% endif %}
         </div>
 
         <aside class="panel">
+            {% if gateway.enabled %}
+            <h5 class="mb-3">Gateway Details</h5>
+            <div class="meta-line"><span>Provider</span><strong>Razorpay</strong></div>
+            <div class="meta-line"><span>Order ID</span><strong>{{ payment.gateway_order_id|default:"Pending" }}</strong></div>
+            <div class="meta-line"><span>Status</span><strong>{{ payment.status }}</strong></div>
+            <p class="small text-secondary mt-3 mb-0">If payment succeeds but this page does not update, the webhook can still reconcile the booking automatically.</p>
+            {% else %}
             <h5 class="mb-3">UPI QR</h5>
             <div class="qr-box mb-2">
                 <img src="{{ upi_payload.upi_qr_url }}" alt="UPI QR Code">
@@ -73,10 +96,58 @@
             <a href="{{ upi_payload.upi_intent }}" class="btn btn-outline-success btn-sm w-100 mb-2">Open UPI App</a>
             <a href="{{ upi_payload.upi_qr_url }}" target="_blank" rel="noopener" class="btn btn-outline-light btn-sm w-100">Download QR</a>
             <p class="small text-secondary mt-3 mb-0">For demo environments, payment confirmation is recorded after UTR submission.</p>
+            {% endif %}
         </aside>
     </div>
 </section>
 
+{% if gateway.enabled %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+(function () {
+    const button = document.getElementById('razorpayButton');
+    const form = document.getElementById('razorpayResultForm');
+
+    if (!button || !form) {
+        return;
+    }
+
+    const options = {
+        key: '{{ gateway.razorpay_key_id|escapejs }}',
+        amount: '{{ payment_amount_subunits }}',
+        currency: 'INR',
+        name: 'StudioSync',
+        description: 'Booking #{{ booking.id }} - {{ booking.event_type|escapejs }}',
+        order_id: '{{ payment.gateway_order_id|escapejs }}',
+        prefill: {
+            name: '{{ request.user.get_full_name|default:request.user.username|escapejs }}',
+            email: '{{ request.user.email|escapejs }}',
+            contact: '{{ request.user.phone|default:""|escapejs }}'
+        },
+        handler: function (response) {
+            document.getElementById('razorpayOrderId').value = response.razorpay_order_id || '';
+            document.getElementById('razorpayPaymentId').value = response.razorpay_payment_id || '';
+            document.getElementById('razorpaySignature').value = response.razorpay_signature || '';
+            form.submit();
+        },
+        modal: {
+            ondismiss: function () {
+                button.disabled = false;
+            }
+        },
+        theme: {
+            color: '#0ea5e9'
+        }
+    };
+
+    button.addEventListener('click', function () {
+        button.disabled = true;
+        const checkout = new Razorpay(options);
+        checkout.open();
+    });
+})();
+</script>
+{% else %}
 <script>
 (function () {
     const methodOptions = document.querySelectorAll('.method-option');
@@ -108,4 +179,5 @@
     render();
 })();
 </script>
+{% endif %}
 {% endblock %}

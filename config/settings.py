@@ -272,6 +272,19 @@ if USE_CLOUDINARY_MEDIA:
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
+# ==================== PAYMENT GATEWAY SETTINGS ====================
+
+PAYMENT_GATEWAY_MODE = os.getenv('PAYMENT_GATEWAY_MODE', 'demo').strip().lower()
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', '').strip()
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', '').strip()
+RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET', '').strip()
+PAYMENT_GATEWAY_ENABLED = (
+    PAYMENT_GATEWAY_MODE == 'razorpay'
+    and bool(RAZORPAY_KEY_ID)
+    and bool(RAZORPAY_KEY_SECRET)
+)
+
+
 # ==================== REST FRAMEWORK SETTINGS ====================
 
 REST_FRAMEWORK = {

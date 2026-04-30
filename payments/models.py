@@ -21,11 +21,23 @@ class Payment(models.Model):
         ('UPI', 'UPI'),
     )
 
+    GATEWAY_CHOICES = (
+        ('Demo', 'Demo / Manual'),
+        ('Razorpay', 'Razorpay'),
+    )
+
     booking = models.OneToOneField(BookingRequest, on_delete=models.CASCADE, related_name='payment')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='payments')
     
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     transaction_id = models.CharField(max_length=100, unique=True, blank=True, null=True)
+    gateway = models.CharField(max_length=20, choices=GATEWAY_CHOICES, default='Demo')
+    gateway_order_id = models.CharField(max_length=120, blank=True, null=True, db_index=True)
+    gateway_payment_id = models.CharField(max_length=120, blank=True, null=True, db_index=True)
+    gateway_signature = models.CharField(max_length=255, blank=True, null=True)
+    gateway_status = models.CharField(max_length=50, blank=True, null=True)
+    failure_reason = models.TextField(blank=True, null=True)
+    raw_gateway_payload = models.JSONField(blank=True, null=True)
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
     payment_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')

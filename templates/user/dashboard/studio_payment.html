@@ -51,7 +51,7 @@
                             <div class="small text-secondary">{{ booking.event_type }} | {{ booking.date|date:"d M Y" }}</div>
                         </div>
                         <div class="text-end">
-                            <div class="fw-semibold">₹ {{ booking.amount }}</div>
+                            <div class="fw-semibold">&#8377; {{ booking.amount }}</div>
                             {% if not selected_booking or booking.id != selected_booking.id %}
                             <a href="{% url 'studio_payment' %}?booking_id={{ booking.id }}" class="btn btn-outline-info btn-sm mt-1">Select</a>
                             {% endif %}
@@ -65,6 +65,14 @@
                 {% csrf_token %}
                 <input type="hidden" name="booking_id" value="{{ selected_booking.id }}">
 
+                {% if gateway.enabled %}
+                <div class="alert alert-info small">
+                    Razorpay checkout is enabled. Use the gateway checkout page for verified payment confirmation.
+                </div>
+                <a href="{% url 'payments:create_payment' selected_booking.id %}" class="btn btn-info w-100">
+                    <i class="bi bi-shield-check"></i> Open Gateway Checkout
+                </a>
+                {% else %}
                 <div class="mb-3">
                     <label class="form-label">Payment Method</label>
                     <div class="d-grid gap-2" id="methodWrap">
@@ -90,8 +98,9 @@
                 </div>
 
                 <button type="submit" class="btn btn-info w-100">
-                    <i class="bi bi-lock"></i> Pay ₹ {{ selected_booking.amount }}
+                    <i class="bi bi-lock"></i> Pay &#8377; {{ selected_booking.amount }}
                 </button>
+                {% endif %}
             </form>
         </div>
 
@@ -102,10 +111,16 @@
             <div class="meta-line"><span>Date</span><strong>{{ selected_booking.date|date:"d M Y" }}</strong></div>
             <div class="meta-line"><span>Time</span><strong>{{ selected_booking.time_window_display }}</strong></div>
             <div class="meta-line"><span>Duration</span><strong>{{ selected_booking.duration_display }}</strong></div>
-            <div class="meta-line"><span>Amount</span><strong>₹ {{ selected_booking.amount }}</strong></div>
+            <div class="meta-line"><span>Amount</span><strong>&#8377; {{ selected_booking.amount }}</strong></div>
             <div class="meta-line"><span>Payment Status</span><strong>{{ selected_booking.payment_status }}</strong></div>
+            <div class="meta-line"><span>Gateway</span><strong>{{ gateway.provider }}</strong></div>
 
-            {% if upi_payload %}
+            {% if gateway.enabled and selected_payment %}
+            <hr class="border-secondary">
+            <h6 class="mb-2">Gateway Order</h6>
+            <div class="meta-line"><span>Order ID</span><strong>{{ selected_payment.gateway_order_id|default:"Pending" }}</strong></div>
+            <div class="meta-line"><span>Status</span><strong>{{ selected_payment.status }}</strong></div>
+            {% elif upi_payload %}
             <hr class="border-secondary">
             <h6 class="mb-2">UPI QR</h6>
             <div class="qr-box">

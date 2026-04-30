@@ -43,10 +43,15 @@ def landing_explore_studio(request):
 def studio_payment(request):
     from bookings.models import BookingRequest
     from payments.models import Payment
+    from payments.services import (
+        PaymentGatewayError,
+        build_upi_payload,
+        complete_demo_payment,
+        payment_gateway_context,
+        prepare_checkout_payment,
+    )
 
     upi_id_pattern = re.compile(r'^[a-zA-Z0-9._-]{2,}@[a-zA-Z]{2,}$')
-    payee_upi_id = 'studiosync@upi'
-    payee_name = 'StudioSync'
 
     unpaid_bookings = BookingRequest.objects.filter(
         user=request.user,
@@ -82,9 +87,13 @@ def studio_payment(request):
             return redirect(f"{request.path}?booking_id={selected_booking.id}")
 
         existing_payment = getattr(selected_booking, 'payment', None)
-        if existing_payment:
+        if existing_payment and existing_payment.status == 'Completed':
             messages.warning(request, 'Payment already exists for this booking')
             return redirect('payments:payment_detail', payment_id=existing_payment.id)
+
+        if payment_gateway_context()['enabled']:
+            messages.info(request, 'Use the gateway checkout button to complete this payment.')
+            return redirect('payments:create_payment', booking_id=selected_booking.id)
 
         if payment_method == 'UPI':
             if payer_upi_id and not upi_id_pattern.match(payer_upi_id):
@@ -95,54 +104,33 @@ def studio_payment(request):
                 return redirect(f"{request.path}?booking_id={selected_booking.id}")
 
         try:
-            payment = Payment.objects.create(
-                booking=selected_booking,
-                user=request.user,
-                amount=selected_booking.amount,
-                payment_method=payment_method,
-                status='Processing'
-            )
-
-            if payment_method == 'UPI':
-                payment.transaction_id = f"UPI-{upi_reference}-{payment.id:04d}"
-            else:
-                payment.transaction_id = f"TXN{payment.id:06d}"
-
-            payment.status = 'Completed'
-            payment.completed_at = timezone.now()
-            payment.save()
-
-            selected_booking.payment_status = 'Paid'
-            selected_booking.save(update_fields=['payment_status', 'updated_at'])
-
+            payment = prepare_checkout_payment(selected_booking, payment_method)
+            payment.payment_method = payment_method
+            payment.status = 'Processing'
+            payment.save(update_fields=['payment_method', 'status', 'payment_status', 'updated_at'])
+            complete_demo_payment(payment, upi_reference=upi_reference, payer_upi_id=payer_upi_id)
             messages.success(request, 'Payment successful.')
             return redirect('payments:payment_detail', payment_id=payment.id)
-        except Exception as exc:
+        except PaymentGatewayError as exc:
             messages.error(request, f'Unable to process payment: {exc}')
             return redirect(f"{request.path}?booking_id={selected_booking.id}")
 
     upi_payload = None
+    gateway = payment_gateway_context()
+    selected_payment = None
     if selected_booking:
-        amount_str = f"{Decimal(selected_booking.amount):.2f}"
-        note = f"Studio booking #{selected_booking.id}"
-        upi_intent = (
-            f"upi://pay?pa={quote(payee_upi_id)}"
-            f"&pn={quote(payee_name)}"
-            f"&am={amount_str}"
-            f"&cu=INR"
-            f"&tn={quote(note)}"
-        )
-        upi_payload = {
-            'upi_id': payee_upi_id,
-            'upi_name': payee_name,
-            'upi_intent': upi_intent,
-            'upi_qr_url': f"https://chart.googleapis.com/chart?cht=qr&chs=340x340&chl={quote(upi_intent, safe='')}",
-        }
+        upi_payload = build_upi_payload(selected_booking.amount, selected_booking.id, size=340)
+        try:
+            selected_payment = prepare_checkout_payment(selected_booking)
+        except PaymentGatewayError as exc:
+            messages.error(request, str(exc))
 
     context = {
         'unpaid_bookings': unpaid_bookings[:12],
         'pending_payment_bookings': pending_payment_bookings[:12],
         'selected_booking': selected_booking,
+        'selected_payment': selected_payment,
+        'gateway': gateway,
         'upi_payload': upi_payload,
         'payment_methods': Payment.PAYMENT_METHOD_CHOICES,
     }

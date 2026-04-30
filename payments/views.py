@@ -1,37 +1,31 @@
+import json
+import re
+from decimal import Decimal, InvalidOperation
+
+from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Sum
-from django.utils import timezone
-from decimal import Decimal, InvalidOperation
-from urllib.parse import quote
-import re
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+
 from .models import Payment, PaymentRefund
 from bookings.models import BookingRequest
+from .services import (
+    PaymentGatewayError,
+    build_upi_payload,
+    complete_demo_payment,
+    complete_razorpay_checkout,
+    handle_razorpay_webhook_event,
+    payment_amount_subunits,
+    payment_gateway_context,
+    prepare_checkout_payment,
+    verify_webhook_signature,
+)
 
 
 UPI_ID_PATTERN = re.compile(r'^[a-zA-Z0-9._-]{2,}@[a-zA-Z]{2,}$')
-UPI_PAYEE_ID = 'studiosync@upi'
-UPI_PAYEE_NAME = 'StudioSync'
-
-
-def build_upi_payload(amount, booking_id):
-    amount_str = f"{Decimal(amount):.2f}"
-    note = f"Studio booking #{booking_id}"
-    upi_intent = (
-        f"upi://pay?pa={quote(UPI_PAYEE_ID)}"
-        f"&pn={quote(UPI_PAYEE_NAME)}"
-        f"&am={amount_str}"
-        f"&cu=INR"
-        f"&tn={quote(note)}"
-    )
-    qr_url = f"https://chart.googleapis.com/chart?cht=qr&chs=360x360&chl={quote(upi_intent, safe='')}"
-    return {
-        'upi_id': UPI_PAYEE_ID,
-        'upi_name': UPI_PAYEE_NAME,
-        'upi_intent': upi_intent,
-        'upi_qr_url': qr_url,
-    }
 
 
 @login_required
@@ -62,17 +56,23 @@ def create_payment(request, booking_id):
     """Create a payment for a booking"""
     booking = get_object_or_404(BookingRequest, id=booking_id, user=request.user)
     
-    # Check if payment already exists
-    if hasattr(booking, 'payment'):
-        messages.warning(request, 'Payment already exists for this booking')
-        return redirect('bookings:booking_detail', booking_id=booking_id)
-
     if booking.status == 'Cancelled':
         messages.error(request, 'Cancelled bookings cannot be paid')
         return redirect('bookings:booking_detail', booking_id=booking_id)
 
     if booking.status != 'Confirmed':
         messages.warning(request, 'Payment is available only after the studio approves your booking.')
+        return redirect('bookings:booking_detail', booking_id=booking_id)
+
+    existing_payment = getattr(booking, 'payment', None)
+    if existing_payment and existing_payment.status == 'Completed':
+        messages.warning(request, 'Payment already exists for this booking')
+        return redirect('payments:payment_detail', payment_id=existing_payment.id)
+
+    try:
+        payment = prepare_checkout_payment(booking)
+    except PaymentGatewayError as exc:
+        messages.error(request, str(exc))
         return redirect('bookings:booking_detail', booking_id=booking_id)
     
     if request.method == 'POST':
@@ -86,6 +86,10 @@ def create_payment(request, booking_id):
             messages.error(request, 'Please select a payment method')
             return redirect('payments:create_payment', booking_id=booking_id)
 
+        if payment_gateway_context()['enabled']:
+            messages.info(request, 'Please complete payment using the gateway checkout button.')
+            return redirect('payments:create_payment', booking_id=booking_id)
+
         if payment_method == 'UPI':
             if payer_upi_id and not UPI_ID_PATTERN.match(payer_upi_id):
                 messages.error(request, 'Please enter a valid UPI ID (example: name@bank)')
@@ -96,39 +100,60 @@ def create_payment(request, booking_id):
                 return redirect('payments:create_payment', booking_id=booking_id)
         
         try:
-            payment = Payment.objects.create(
-                booking=booking,
-                user=request.user,
-                amount=booking.amount,
-                payment_method=payment_method,
-                status='Processing'
-            )
-
-            if payment_method == 'UPI':
-                payment.transaction_id = f"UPI-{upi_reference}-{payment.id:04d}"
-            else:
-                payment.transaction_id = f"TXN{payment.id:06d}"
-
-            payment.status = 'Completed'
-            payment.completed_at = timezone.now()
-            payment.save()
-
-            booking.payment_status = 'Paid'
-            booking.save(update_fields=['payment_status', 'updated_at'])
-
+            payment.payment_method = payment_method
+            payment.status = 'Processing'
+            payment.save(update_fields=['payment_method', 'status', 'payment_status', 'updated_at'])
+            complete_demo_payment(payment, upi_reference=upi_reference, payer_upi_id=payer_upi_id)
             messages.success(request, 'Payment successful!')
             return redirect('payments:payment_detail', payment_id=payment.id)
-        except Exception as e:
-            messages.error(request, f'Error processing payment: {str(e)}')
+        except PaymentGatewayError as exc:
+            messages.error(request, str(exc))
             return redirect('bookings:booking_detail', booking_id=booking_id)
 
     upi_payload = build_upi_payload(booking.amount, booking.id)
     context = {
         'booking': booking,
+        'payment': payment,
+        'payment_amount_subunits': payment_amount_subunits(payment.amount),
+        'gateway': payment_gateway_context(),
         'upi_payload': upi_payload,
         'payment_methods': Payment.PAYMENT_METHOD_CHOICES,
     }
     return render(request, 'payments/create_payment.html', context)
+
+
+@login_required
+@require_POST
+def razorpay_checkout_complete(request, payment_id):
+    payment = get_object_or_404(Payment, id=payment_id, user=request.user)
+    razorpay_order_id = request.POST.get('razorpay_order_id', '')
+    razorpay_payment_id = request.POST.get('razorpay_payment_id', '')
+    razorpay_signature = request.POST.get('razorpay_signature', '')
+
+    try:
+        complete_razorpay_checkout(payment, razorpay_order_id, razorpay_payment_id, razorpay_signature)
+    except PaymentGatewayError as exc:
+        messages.error(request, str(exc))
+        return redirect('payments:create_payment', booking_id=payment.booking_id)
+
+    messages.success(request, 'Payment verified successfully!')
+    return redirect('payments:payment_detail', payment_id=payment.id)
+
+
+@csrf_exempt
+@require_POST
+def razorpay_webhook(request):
+    signature = request.headers.get('X-Razorpay-Signature', '')
+    if not verify_webhook_signature(request.body, signature):
+        return HttpResponseBadRequest('Invalid webhook signature')
+
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest('Invalid webhook payload')
+
+    handle_razorpay_webhook_event(payload)
+    return JsonResponse({'ok': True})
 
 
 @login_required
