@@ -77,7 +77,7 @@ INSTALLED_APPS = [
     'studios',
     'bookings',
     'payments',
-    'reviews',
+    'reviews',     # ReviewResponse model — keep for migrations
     'chatbot',
     'recommendations',
     'dashboard',
@@ -209,7 +209,9 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# Set to Indian Standard Time (IST = UTC+5:30) so booking dates/times
+# display correctly for Indian users without manual timezone conversion
+TIME_ZONE = 'Asia/Kolkata'
 
 USE_I18N = True
 
@@ -304,8 +306,18 @@ REST_FRAMEWORK = {
 
 
 # Email settings for auth flows (password reset)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'noreply@studiosync.local'
+# In production: set EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+# and configure EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, EMAIL_USE_TLS
+EMAIL_BACKEND = os.getenv(
+    'EMAIL_BACKEND',
+    'django.core.mail.backends.console.EmailBackend'  # Default: log to console in dev
+)
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', True)
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@studiosync.local')
 
 LOG_LEVEL = os.getenv('DJANGO_LOG_LEVEL', 'INFO').upper()
 LOGGING = {

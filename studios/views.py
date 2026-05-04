@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -122,18 +124,19 @@ def book_studio(request, studio_id):
     """Create a booking with a studio"""
     studio = get_object_or_404(Studio, id=studio_id, is_verified=True)
     
+    GST_RATE = Decimal('0.18')
+
     if request.method == 'POST':
         service_id = request.POST.get('service_id')
         event_type = request.POST.get('event_type')
         date = request.POST.get('date')
         start_time_raw = (request.POST.get('start_time') or '').strip()
         end_time_raw = (request.POST.get('end_time') or '').strip()
-        amount = request.POST.get('amount')
-        
+
         if not all([event_type, date, start_time_raw, end_time_raw]):
             messages.error(request, 'Event type, date, start time, and end time are required')
-            return redirect('studio_detail', studio_id=studio_id)
-        
+            return redirect('studios:studio_detail', studio_id=studio_id)  # FIX: namespaced URL
+
         try:
             start_time_obj = datetime.strptime(start_time_raw, '%H:%M').time()
             end_time_obj = datetime.strptime(end_time_raw, '%H:%M').time()
@@ -142,7 +145,7 @@ def book_studio(request, studio_id):
             end_minutes = (end_time_obj.hour * 60) + end_time_obj.minute
             if end_minutes <= start_minutes:
                 messages.error(request, 'End time must be later than start time')
-                return redirect('studio_detail', studio_id=studio_id)
+                return redirect('studios:studio_detail', studio_id=studio_id)  # FIX: namespaced URL
 
             duration_minutes = end_minutes - start_minutes
             duration_hours = max(1, (duration_minutes + 59) // 60)
@@ -152,13 +155,20 @@ def book_studio(request, studio_id):
             if service_id:
                 service = Service.objects.filter(id=service_id, studio=studio).first()
 
-            total_price = amount
+            # Base price: service price or hourly rate × duration
             if service and service.price is not None:
-                total_price = service.price
+                base_price = Decimal(str(service.price)).quantize(Decimal('0.01'))
+            else:
+                base_rate = Decimal(str(studio.price_per_hour or 0))
+                base_price = (base_rate * Decimal(duration_hours)).quantize(Decimal('0.01'))
 
-            if not total_price:
-                base_rate = studio.price_per_hour or 0
-                total_price = base_rate * duration_hours
+            # Apply 18% GST — consistent with dashboard booking flow
+            gst_amount = (base_price * GST_RATE).quantize(Decimal('0.01'))
+            total_price = (base_price + gst_amount).quantize(Decimal('0.01'))
+
+            if total_price <= 0:
+                messages.error(request, 'Unable to compute total price. Please contact the studio.')
+                return redirect('studios:studio_detail', studio_id=studio_id)
 
             booking = BookingRequest.objects.create(
                 studio=studio,
@@ -173,13 +183,14 @@ def book_studio(request, studio_id):
                 end_time=end_time_obj,
                 duration_hours=duration_hours,
                 amount=total_price,
-                total_price=total_price
+                total_price=total_price,
+                special_requirements=f"Base: ₹{base_price} | GST (18%): ₹{gst_amount}",
             )
-            messages.success(request, 'Booking created successfully!')
+            messages.success(request, 'Booking created successfully! Complete payment after studio approval.')
             return redirect('user_bookings')
         except Exception as e:
             messages.error(request, f'Error creating booking: {str(e)}')
-            return redirect('studio_detail', studio_id=studio_id)
+            return redirect('studios:studio_detail', studio_id=studio_id)  # FIX: namespaced URL
     
     context = {
         'studio': studio,

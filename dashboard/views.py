@@ -763,7 +763,13 @@ def user_payments(request):
 @login_required
 @role_required(['USER'])
 def user_notifications(request):
-    return render(request, 'user/dashboard/user_notifications.html')
+    # BUG FIX: was rendering with no context — notifications and unread_count were missing
+    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
+    unread_count = notifications.filter(is_read=False).count()
+    return render(request, 'user/dashboard/user_notifications.html', {
+        'notifications': notifications,
+        'unread_count': unread_count,
+    })
 
 
 @login_required
@@ -1457,9 +1463,10 @@ def delete_photo(request, photo_id):
 
 @login_required
 @role_required(['STUDIO'])
+@require_POST  # SECURITY FIX: booking approval must be POST-only
 def approve_booking(request, booking_id):
     studio = Studio.objects.filter(user=request.user).first()
-    
+
     if not studio:
         messages.error(request, 'Studio profile not found')
         return redirect('studio_dashboard')
@@ -1467,17 +1474,17 @@ def approve_booking(request, booking_id):
     from bookings.models import BookingRequest
     booking = get_object_or_404(BookingRequest, id=booking_id, studio=studio)
     booking.status = "Confirmed"
-    booking.save()
+    booking.save(update_fields=['status', 'updated_at'])
     messages.success(request, 'Booking approved!')
-
     return redirect('studio_bookings')
 
 
 @login_required
 @role_required(['STUDIO'])
+@require_POST  # SECURITY FIX: booking cancellation must be POST-only
 def cancel_booking(request, booking_id):
     studio = Studio.objects.filter(user=request.user).first()
-    
+
     if not studio:
         messages.error(request, 'Studio profile not found')
         return redirect('studio_dashboard')
@@ -1485,9 +1492,8 @@ def cancel_booking(request, booking_id):
     from bookings.models import BookingRequest
     booking = get_object_or_404(BookingRequest, id=booking_id, studio=studio)
     booking.status = "Cancelled"
-    booking.save()
+    booking.save(update_fields=['status', 'updated_at'])
     messages.success(request, 'Booking cancelled!')
-
     return redirect('studio_bookings')
 
 

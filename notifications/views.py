@@ -17,13 +17,15 @@ def user_notifications(request):
         'unread_count': unread_count,
     })
 
+
 @login_required
 @role_required(['USER'])
+@require_POST  # SECURITY FIX: state-change must be POST only — prevents CSRF via GET links
 def mark_as_read(request, id):
     n = get_object_or_404(Notification, id=id, user=request.user)
     n.is_read = True
-    n.save()
-    return redirect('notifications')
+    n.save(update_fields=['is_read'])
+    return redirect('user_notifications')  # FIX: was 'notifications' (NoReverseMatch)
 
 
 @login_required
@@ -32,4 +34,4 @@ def mark_as_read(request, id):
 def clear_notifications(request):
     deleted_count, _ = Notification.objects.filter(user=request.user).delete()
     messages.success(request, f'Cleared {deleted_count} notification(s).')
-    return redirect('notifications')
+    return redirect('user_notifications')  # FIX: was 'notifications' (NoReverseMatch)

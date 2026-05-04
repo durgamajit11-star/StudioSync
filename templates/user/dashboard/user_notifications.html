@@ -56,10 +56,13 @@
 
             <!-- ACTION -->
             {% if not n.is_read %}
-            <a href="{% url 'mark_read' n.id %}" 
-               class="btn btn-outline-light btn-sm mark-btn">
-                Mark as read
-            </a>
+            {# SECURITY FIX: was a plain <a> GET link — now CSRF-protected POST form #}
+            <form method="POST" action="{% url 'mark_read' n.id %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-light btn-sm mark-btn">
+                    Mark as read
+                </button>
+            </form>
             {% endif %}
 
         </div>

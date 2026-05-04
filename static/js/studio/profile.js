@@ -1,4 +1,6 @@
 (function () {
+    const MAX_UPLOAD_BYTES = 3.25 * 1024 * 1024;
+
     const profileForm = document.getElementById('studioProfileForm');
     if (!profileForm) {
         return;
@@ -31,6 +33,43 @@
     const deleteConfirmInput = document.getElementById('deleteConfirmInput');
 
     const initialFormData = new FormData(profileForm);
+
+    function cloneFormData(source) {
+        const cloned = new FormData();
+        source.forEach(function (value, key) {
+            cloned.append(key, value);
+        });
+        return cloned;
+    }
+
+    function collectSelectedFiles() {
+        const uploads = [];
+        Array.from(profileForm.querySelectorAll('input[type="file"]')).forEach(function (input) {
+            if (!input.files || !input.files.length) {
+                return;
+            }
+
+            Array.from(input.files).forEach(function (file) {
+                uploads.push({ input: input, file: file });
+            });
+        });
+        return uploads;
+    }
+
+    function getFileLabel(input) {
+        if (!input || !input.name) {
+            return 'File';
+        }
+
+        const friendlyNames = {
+            profile_image: 'Profile image',
+            studio_license: 'License document',
+            studio_portfolio: 'Portfolio document',
+            studio_cover_image: 'Studio cover image'
+        };
+
+        return friendlyNames[input.name] || 'File';
+    }
 
     function showStatus(message, tone) {
         if (!statusEl) {
@@ -334,6 +373,64 @@
             showStatus('Saving profile changes...', 'text-warning');
         });
     }
+
+    profileForm.addEventListener('submit', async function (event) {
+        const uploads = collectSelectedFiles();
+        if (!uploads.length) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const originalButtonText = saveBtn ? saveBtn.innerHTML : '';
+        if (saveBtn) {
+            saveBtn.disabled = true;
+        }
+
+        try {
+            const baseFormData = new FormData(profileForm);
+            Array.from(profileForm.querySelectorAll('input[type="file"]')).forEach(function (input) {
+                if (input.name) {
+                    baseFormData.delete(input.name);
+                }
+            });
+
+            for (let index = 0; index < uploads.length; index += 1) {
+                const upload = uploads[index];
+                if (upload.file.size > MAX_UPLOAD_BYTES) {
+                    throw new Error(getFileLabel(upload.input) + ' must be under 3.25 MB. Please choose a smaller file.');
+                }
+
+                showStatus('Uploading ' + getFileLabel(upload.input) + ' ' + (index + 1) + ' of ' + uploads.length + '...', 'text-warning');
+
+                const requestData = cloneFormData(baseFormData);
+                requestData.append(upload.input.name, upload.file, upload.file.name);
+
+                const response = await fetch(profileForm.action || window.location.href, {
+                    method: 'POST',
+                    body: requestData,
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Unable to save profile changes. Please try again.');
+                }
+            }
+
+            showStatus('Profile updated successfully. Reloading...', 'text-success');
+            window.location.reload();
+        } catch (error) {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalButtonText;
+            }
+            showStatus(error.message || 'Unable to save profile changes right now.', 'text-danger');
+            alert(error.message || 'Unable to save profile changes right now.');
+        }
+    });
 
     if (dangerAcknowledge) {
         dangerAcknowledge.addEventListener('change', updateDangerActionsState);

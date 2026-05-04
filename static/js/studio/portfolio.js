@@ -1,5 +1,5 @@
 (function () {
-    const MAX_UPLOAD_BYTES = 3.5 * 1024 * 1024;
+    const MAX_UPLOAD_BYTES = 3.25 * 1024 * 1024;
     const MAX_IMAGE_DIMENSION = 1800;
 
     function blobFromCanvas(canvas, type, quality) {
@@ -164,7 +164,7 @@
                     updateUploadStatus(form, 'Preparing ' + (index + 1) + ' of ' + files.length + '...');
                     const compressedFile = await compressImageFile(files[index]);
                     if (compressedFile.size > MAX_UPLOAD_BYTES) {
-                        throw new Error('One image is still too large after compression. Please choose an image under 4MB.');
+                        throw new Error('One image is still too large after compression. Please choose an image under 3.25 MB.');
                     }
 
                     updateUploadStatus(form, 'Uploading ' + (index + 1) + ' of ' + files.length + '...');

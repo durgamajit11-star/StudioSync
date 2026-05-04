@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q
+from django.views.decorators.http import require_POST
 from .models import BookingRequest, BookingNote
 
 
@@ -74,14 +75,15 @@ def cancel_booking(request, booking_id):
 
 
 @login_required
+@require_POST  # SECURITY FIX: booking approval must be POST-only
 def approve_booking(request, booking_id):
     """Approve a booking (studio owner only)"""
     booking = get_object_or_404(BookingRequest, id=booking_id)
-    
+
     if booking.studio.user != request.user:
         messages.error(request, 'You do not have permission to approve this booking')
         return redirect('studio_bookings')
-    
+
     booking.status = 'Confirmed'
     booking.save()
     messages.success(request, 'Booking approved successfully!')
@@ -89,14 +91,15 @@ def approve_booking(request, booking_id):
 
 
 @login_required
+@require_POST  # SECURITY FIX: booking rejection must be POST-only
 def reject_booking(request, booking_id):
     """Reject a booking (studio owner only)"""
     booking = get_object_or_404(BookingRequest, id=booking_id)
-    
+
     if booking.studio.user != request.user:
         messages.error(request, 'You do not have permission to reject this booking')
         return redirect('studio_bookings')
-    
+
     booking.status = 'Cancelled'
     booking.save()
     messages.success(request, 'Booking rejected!')

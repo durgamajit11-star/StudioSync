@@ -21,12 +21,13 @@
 </div>
 
 {% if messages %}
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-    {% for message in messages %}
-        <i class="bi bi-check-circle"></i> {{ message }}
-    {% endfor %}
+{% for message in messages %}
+<div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+    <i class="bi bi-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' or message.tags == 'danger' %}exclamation-circle{% elif message.tags == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+    {{ message }}
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
+{% endfor %}
 {% endif %}
 
 <!-- ================= STATS CARDS ================= -->
@@ -208,8 +209,12 @@
                     </div>
                 </div>
                 <div class="mb-3">
-                    <strong>Notes:</strong>
-                    <p class="text-muted">{{ booking.notes|default:"No additional notes" }}</p>
+                    <strong>Notes / Requirements:</strong>
+                    {# BUG FIX: booking.notes is a RelatedManager (BookingNote FK), not a string #}
+                    {# The written notes/requirements text is in special_requirements field #}
+                    <p class="text-muted">
+                        {{ booking.special_requirements|default:"No additional notes" }}
+                    </p>
                 </div>
             </div>
             <div class="modal-footer">

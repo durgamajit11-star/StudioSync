@@ -6,19 +6,27 @@ from .forms import StyledAuthenticationForm
 from .forms import UserRegisterForm, StudioRegisterForm
 
 
+def _redirect_for_role(user):
+    if user.role == 'USER':
+        return redirect('user_dashboard')
+    if user.role == 'STUDIO':
+        return redirect('studio_dashboard')
+    if user.role == 'ADMIN':
+        return redirect('admin_dashboard')
+    return None
+
+
 # ================= AUTH (LOGIN + REGISTER SINGLE PAGE) =================
 @never_cache
 def auth_view(request):
 
     # Redirect already logged-in users
     if request.user.is_authenticated:
-        user = request.user
-        if user.role == 'USER':
-            return redirect('user_dashboard')
-        elif user.role == 'STUDIO':
-            return redirect('studio_dashboard')
-        elif user.role == 'ADMIN':
-            return redirect('admin_dashboard')
+        role_redirect = _redirect_for_role(request.user)
+        if role_redirect is not None:
+            return role_redirect
+        logout(request)
+        messages.error(request, 'Your account role is not configured correctly. Please contact support.')
 
     login_form = StyledAuthenticationForm()
     user_form = UserRegisterForm()
@@ -36,12 +44,12 @@ def auth_view(request):
                 user = login_form.get_user()
                 login(request, user)
 
-                if user.role == 'USER':
-                    return redirect('user_dashboard')
-                elif user.role == 'STUDIO':
-                    return redirect('studio_dashboard')
-                elif user.role == 'ADMIN':
-                    return redirect('admin_dashboard')
+                role_redirect = _redirect_for_role(user)
+                if role_redirect is not None:
+                    return role_redirect
+
+                logout(request)
+                messages.error(request, 'Your account role is not configured correctly. Please contact support.')
             else:
                 messages.error(request, "Invalid username or password!")
 
