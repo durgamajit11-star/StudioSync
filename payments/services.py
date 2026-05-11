@@ -9,6 +9,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from .models import Payment
+from notifications.services import create_notification
 
 
 UPI_PAYEE_ID = 'studiosync@upi'
@@ -208,6 +209,11 @@ def mark_payment_completed(
 
         locked_booking.payment_status = 'Paid'
         locked_booking.save(update_fields=['payment_status', 'updated_at'])
+        create_notification(
+            locked_booking.user,
+            f"Payment received for booking #{locked_booking.id} with {locked_booking.studio.studio_name}.",
+            'payment_completed',
+        )
         return locked_payment
 
 

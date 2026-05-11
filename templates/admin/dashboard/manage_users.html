@@ -81,6 +81,11 @@
                             {% csrf_token %}
                             <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
                         </form>
+                        <form method="POST" action="{% url 'notify_user' user.id %}" class="mt-2 d-flex gap-1 justify-content-end">
+                            {% csrf_token %}
+                            <input type="text" name="message" class="form-control form-control-sm" placeholder="Send notification" maxlength="500" required>
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Send</button>
+                        </form>
                     </td>
                 </tr>
                 {% empty %}

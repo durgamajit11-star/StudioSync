@@ -36,6 +36,7 @@ urlpatterns = [
     path('studio/bookings/approve/<int:booking_id>/', views.approve_booking, name='studio_approve_booking'),
     path('studio/bookings/cancel/<int:booking_id>/', views.cancel_booking, name='studio_cancel_booking'),
     path('studio/bookings/complete/<int:booking_id>/', views.complete_booking, name='studio_complete_booking'),
+    path('studio/bookings/notify/<int:booking_id>/', views.studio_notify_booking_user, name='studio_notify_booking_user'),
 
     # ================= EARNINGS =================
     path('studio/earnings/', views.studio_earnings, name='studio_earnings'),

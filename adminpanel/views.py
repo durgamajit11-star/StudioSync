@@ -17,6 +17,7 @@ from studios.models import Studio
 from bookings.models import BookingRequest
 from payments.models import Payment
 from notifications.models import Notification
+from notifications.services import create_notification
 from chatbot.models import ChatMessage
 
 
@@ -313,6 +314,25 @@ def delete_user(request, id):
     username = user.username
     user.delete()
     messages.success(request, f'User {username} deleted successfully.')
+    return redirect('manage_users')
+
+
+@login_required
+@role_required(['ADMIN'])
+@require_POST
+def notify_user(request, id):
+    user = get_object_or_404(User, id=id, role='USER')
+    message_text = (request.POST.get('message') or '').strip()
+
+    if len(message_text) < 5:
+        messages.error(request, 'Notification message must be at least 5 characters.')
+        return redirect('manage_users')
+    if len(message_text) > 500:
+        messages.error(request, 'Notification message must be 500 characters or fewer.')
+        return redirect('manage_users')
+
+    create_notification(user, f"Admin: {message_text}", 'admin_notice')
+    messages.success(request, f'Notification sent to {user.get_full_name() or user.username}.')
     return redirect('manage_users')
 
 

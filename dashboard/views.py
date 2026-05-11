@@ -23,6 +23,7 @@ from studios.models import Studio, Portfolio, Review, Service
 from django.db.models import Q 
 from .models import StudioPreference, UserPreference
 from notifications.models import Notification
+from notifications.services import create_notification
 
 
 logger = logging.getLogger(__name__)
@@ -250,6 +251,11 @@ def studio_booking(request):
         )
 
         messages.success(request, 'Booking created successfully. Complete payment to confirm.')
+        create_notification(
+            request.user,
+            f"Booking request #{booking.id} sent to {booking.studio.studio_name}. You will be notified after studio approval.",
+            'booking_created',
+        )
         return redirect(f"{reverse('studio_payment')}?booking_id={booking.id}")
 
     context = {
@@ -1481,6 +1487,11 @@ def approve_booking(request, booking_id):
     booking = get_object_or_404(BookingRequest, id=booking_id, studio=studio)
     booking.status = "Confirmed"
     booking.save(update_fields=['status', 'updated_at'])
+    create_notification(
+        booking.user,
+        f"Your booking #{booking.id} with {booking.studio.studio_name} has been approved. You can now complete payment.",
+        'booking_approved',
+    )
     messages.success(request, 'Booking approved!')
     return redirect('studio_bookings')
 
@@ -1499,6 +1510,11 @@ def cancel_booking(request, booking_id):
     booking = get_object_or_404(BookingRequest, id=booking_id, studio=studio)
     booking.status = "Cancelled"
     booking.save(update_fields=['status', 'updated_at'])
+    create_notification(
+        booking.user,
+        f"Your booking #{booking.id} with {booking.studio.studio_name} has been cancelled.",
+        'booking_cancelled',
+    )
     messages.success(request, 'Booking cancelled!')
     return redirect('studio_bookings')
 
@@ -1522,6 +1538,46 @@ def complete_booking(request, booking_id):
 
     booking.status = 'Completed'
     booking.save(update_fields=['status', 'updated_at'])
+    create_notification(
+        booking.user,
+        f"Your booking #{booking.id} with {booking.studio.studio_name} has been marked completed.",
+        'booking_completed',
+    )
     messages.success(request, 'Booking marked as completed!')
 
+    return redirect('studio_bookings')
+
+
+@login_required
+@role_required(['STUDIO'])
+@require_POST
+def studio_notify_booking_user(request, booking_id):
+    studio = Studio.objects.filter(user=request.user).first()
+
+    if not studio:
+        messages.error(request, 'Studio profile not found')
+        return redirect('studio_dashboard')
+
+    from bookings.models import BookingRequest
+
+    booking = get_object_or_404(
+        BookingRequest.objects.select_related('user', 'studio'),
+        id=booking_id,
+        studio=studio,
+    )
+    message_text = (request.POST.get('message') or '').strip()
+
+    if len(message_text) < 5:
+        messages.error(request, 'Notification message must be at least 5 characters.')
+        return redirect('studio_bookings')
+    if len(message_text) > 500:
+        messages.error(request, 'Notification message must be 500 characters or fewer.')
+        return redirect('studio_bookings')
+
+    create_notification(
+        booking.user,
+        f"{studio.studio_name}: {message_text}",
+        'studio_message',
+    )
+    messages.success(request, f'Notification sent to {booking.user.get_full_name() or booking.user.username}.')
     return redirect('studio_bookings')

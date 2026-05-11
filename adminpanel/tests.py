@@ -3,6 +3,7 @@ from django.urls import reverse
 
 from accounts.models import CustomUser
 from chatbot.models import ChatMessage
+from notifications.models import Notification
 
 
 class AdminChatbotAnalyticsTests(TestCase):
@@ -75,3 +76,14 @@ class AdminChatbotAnalyticsTests(TestCase):
 		self.assertIn('Weekly Blocked Intents', csv_text)
 		self.assertIn('Blocked Message Details', csv_text)
 		self.assertIn('Blocked response export', csv_text)
+
+	def test_admin_can_notify_user(self):
+		self.client.force_login(self.admin)
+		response = self.client.post(
+			reverse('notify_user', args=[self.user.id]),
+			{'message': 'Your booking policy has been updated.'},
+		)
+
+		self.assertRedirects(response, reverse('manage_users'))
+		notification = Notification.objects.get(user=self.user, type='admin_notice')
+		self.assertIn('Your booking policy has been updated.', notification.message)

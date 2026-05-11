@@ -5,6 +5,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from bookings.models import BookingRequest
+from notifications.models import Notification
 from studios.models import Review, Studio
 from studios.models import Service
 
@@ -250,6 +251,18 @@ class StudioBookingCompletionFlowTests(TestCase):
 		self.assertRedirects(response, reverse('studio_bookings'))
 		self.booking.refresh_from_db()
 		self.assertEqual(self.booking.status, 'Completed')
+		self.assertTrue(Notification.objects.filter(user=self.user, type='booking_completed').exists())
+
+	def test_studio_can_notify_booking_user(self):
+		self.client.login(username='studio_complete_owner', password='Pass123!@#')
+		response = self.client.post(
+			reverse('studio_notify_booking_user', args=[self.booking.id]),
+			{'message': 'Please arrive 10 minutes early.'},
+		)
+
+		self.assertRedirects(response, reverse('studio_bookings'))
+		notification = Notification.objects.get(user=self.user, type='studio_message')
+		self.assertIn('Please arrive 10 minutes early.', notification.message)
 
 	def test_completed_status_reflects_on_user_bookings_page(self):
 		self.client.login(username='studio_complete_owner', password='Pass123!@#')

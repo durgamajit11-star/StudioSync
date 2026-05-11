@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 
 from bookings.models import BookingRequest
+from notifications.models import Notification
 from studios.models import Studio
 
 from .models import Payment
@@ -62,6 +63,7 @@ class PaymentServiceTests(TestCase):
         self.assertEqual(payment.studio_payout_amount, Decimal('2700.00'))
         self.assertEqual(payment.payout_status, 'Ready')
         self.assertEqual(self.booking.payment_status, 'Paid')
+        self.assertTrue(Notification.objects.filter(user=self.user, type='payment_completed').exists())
 
     @override_settings(RAZORPAY_KEY_SECRET='secret')
     def test_razorpay_checkout_completion_requires_valid_signature(self):

@@ -216,6 +216,14 @@
                         {{ booking.special_requirements|default:"No additional notes" }}
                     </p>
                 </div>
+                <form method="POST" action="{% url 'studio_notify_booking_user' booking.id %}" class="border-top pt-3">
+                    {% csrf_token %}
+                    <label class="form-label fw-semibold">Send notification to client</label>
+                    <div class="d-flex gap-2">
+                        <input type="text" name="message" class="form-control" placeholder="Write a short update for this client" maxlength="500" required>
+                        <button type="submit" class="btn btn-outline-primary">Send</button>
+                    </div>
+                </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
