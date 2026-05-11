@@ -57,6 +57,10 @@ class PaymentServiceTests(TestCase):
         self.booking.refresh_from_db()
         self.assertEqual(payment.status, 'Completed')
         self.assertEqual(payment.transaction_id, f'UPI-UTR12345678-{payment.id:04d}')
+        self.assertEqual(payment.commission_rate, Decimal('10.00'))
+        self.assertEqual(payment.commission_amount, Decimal('300.00'))
+        self.assertEqual(payment.studio_payout_amount, Decimal('2700.00'))
+        self.assertEqual(payment.payout_status, 'Ready')
         self.assertEqual(self.booking.payment_status, 'Paid')
 
     @override_settings(RAZORPAY_KEY_SECRET='secret')
@@ -81,7 +85,20 @@ class PaymentServiceTests(TestCase):
         self.booking.refresh_from_db()
         self.assertEqual(payment.status, 'Completed')
         self.assertEqual(payment.gateway_payment_id, 'pay_123')
+        self.assertEqual(payment.commission_amount, Decimal('300.00'))
+        self.assertEqual(payment.studio_payout_amount, Decimal('2700.00'))
+        self.assertEqual(payment.payout_status, 'Ready')
         self.assertEqual(self.booking.payment_status, 'Paid')
+
+    @override_settings(PAYMENT_GATEWAY_ENABLED=False, PAYMENT_GATEWAY_MODE='demo', PLATFORM_COMMISSION_PERCENT='12.50')
+    def test_commission_rate_can_be_configured(self):
+        payment = prepare_checkout_payment(self.booking)
+        complete_demo_payment(payment, upi_reference='UTR12345679', payer_upi_id='client@upi')
+
+        payment.refresh_from_db()
+        self.assertEqual(payment.commission_rate, Decimal('12.50'))
+        self.assertEqual(payment.commission_amount, Decimal('375.00'))
+        self.assertEqual(payment.studio_payout_amount, Decimal('2625.00'))
 
     @override_settings(RAZORPAY_WEBHOOK_SECRET='webhook-secret')
     def test_webhook_signature_uses_raw_body(self):

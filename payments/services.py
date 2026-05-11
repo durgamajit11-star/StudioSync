@@ -61,6 +61,7 @@ def get_or_create_pending_payment(booking, payment_method='UPI'):
                 defaults={
                     'user': locked_booking.user,
                     'amount': locked_booking.amount,
+                    'commission_rate': settings.PLATFORM_COMMISSION_PERCENT,
                     'payment_method': payment_method,
                     'status': 'Pending',
                     'gateway': 'Razorpay' if settings.PAYMENT_GATEWAY_ENABLED else 'Demo',
@@ -200,6 +201,8 @@ def mark_payment_completed(
         locked_payment.raw_gateway_payload = raw_payload or locked_payment.raw_gateway_payload
         locked_payment.failure_reason = ''
         locked_payment.status = 'Completed'
+        if locked_payment.payout_status == 'Pending':
+            locked_payment.payout_status = 'Ready'
         locked_payment.completed_at = locked_payment.completed_at or timezone.now()
         locked_payment.save()
 

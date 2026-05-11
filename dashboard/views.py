@@ -1054,12 +1054,16 @@ def studio_earnings(request):
     from payments.models import Payment
     
     bookings = BookingRequest.objects.filter(studio=studio)
-    total_earnings = bookings.filter(payment_status="Paid").aggregate(Sum('amount'))['amount__sum'] or 0
+    payments = Payment.objects.filter(booking__studio=studio).select_related('booking', 'user').order_by('-created_at')
+    completed_payments = payments.filter(status='Completed')
+
+    total_earnings = completed_payments.aggregate(total=Sum('studio_payout_amount'))['total'] or 0
+    gross_collected = completed_payments.aggregate(total=Sum('amount'))['total'] or 0
+    commission_paid = completed_payments.aggregate(total=Sum('commission_amount'))['total'] or 0
     total_bookings = bookings.count()
     completed_bookings = bookings.filter(status="Completed").count()
-    pending_amount = bookings.filter(payment_status="Unpaid").aggregate(Sum('amount'))['amount__sum'] or 0
+    pending_amount = completed_payments.filter(payout_status='Ready').aggregate(total=Sum('studio_payout_amount'))['total'] or 0
 
-    payments = Payment.objects.filter(booking__studio=studio).select_related('booking', 'user').order_by('-created_at')
     recent_payments = payments[:10]
 
     avg_booking_value = bookings.filter(status='Confirmed').aggregate(avg=Avg('amount'))['avg'] or 0
@@ -1067,10 +1071,10 @@ def studio_earnings(request):
     payment_completion_rate = int((paid_count / total_bookings) * 100) if total_bookings else 0
 
     monthly = (
-        payments.filter(status='Completed')
+        completed_payments
         .annotate(month=TruncMonth('created_at'))
         .values('month')
-        .annotate(total=Sum('amount'))
+        .annotate(total=Sum('studio_payout_amount'))
         .order_by('month')
     )
     revenue_labels = [item['month'].strftime('%b %Y') for item in monthly]
@@ -1083,9 +1087,9 @@ def studio_earnings(request):
     }
 
     top_services = (
-        bookings.filter(status='Confirmed')
-        .values('service__service_name')
-        .annotate(bookings_count=Count('id'), revenue=Sum('amount'))
+        completed_payments
+        .values('booking__service__service_name')
+        .annotate(bookings_count=Count('id'), revenue=Sum('studio_payout_amount'))
         .order_by('-bookings_count')[:3]
     )
 
@@ -1108,6 +1112,8 @@ def studio_earnings(request):
         'total_bookings': total_bookings,
         'completed_bookings': completed_bookings,
         'pending_amount': pending_amount,
+        'gross_collected': gross_collected,
+        'commission_paid': commission_paid,
         'recent_payments': recent_payments,
         'avg_booking_value': avg_booking_value,
         'monthly_average': monthly_average,

@@ -626,6 +626,9 @@ def admin_payments(request):
         'failed_count': payments.filter(status='Failed').count(),
         'total_count': payments.count(),
         'total_amount': payments.filter(status='Completed').aggregate(total=Sum('amount'))['total'] or 0,
+        'commission_amount': payments.filter(status='Completed').aggregate(total=Sum('commission_amount'))['total'] or 0,
+        'studio_payout_amount': payments.filter(status='Completed').aggregate(total=Sum('studio_payout_amount'))['total'] or 0,
+        'payout_ready_amount': payments.filter(status='Completed', payout_status='Ready').aggregate(total=Sum('studio_payout_amount'))['total'] or 0,
     }
     stats['completion_rate'] = int((stats['completed_count'] / stats['total_count']) * 100) if stats['total_count'] else 0
 
@@ -640,3 +643,41 @@ def admin_payments(request):
             'stats': stats,
         },
     )
+
+
+@login_required
+@role_required(['ADMIN'])
+@require_POST
+def mark_studio_payout_paid(request, payment_id):
+    payment = get_object_or_404(
+        Payment.objects.select_related('booking', 'booking__studio'),
+        id=payment_id,
+        status='Completed',
+    )
+
+    if payment.payout_status == 'Paid':
+        messages.info(request, 'This studio payout is already marked as paid.')
+        return redirect('admin_payments')
+
+    payout_reference = (request.POST.get('payout_reference') or '').strip()
+    payout_notes = (request.POST.get('payout_notes') or '').strip()
+
+    payment.payout_status = 'Paid'
+    payment.payout_reference = payout_reference or payment.payout_reference
+    payment.payout_notes = payout_notes or payment.payout_notes
+    payment.payout_processed_at = timezone.now()
+    payment.save(update_fields=[
+        'payout_status',
+        'payout_reference',
+        'payout_notes',
+        'payout_processed_at',
+        'commission_amount',
+        'studio_payout_amount',
+        'payment_status',
+        'updated_at',
+    ])
+    messages.success(
+        request,
+        f'Studio payout of Rs. {payment.studio_payout_amount} marked paid for booking #{payment.booking_id}.',
+    )
+    return redirect('admin_payments')

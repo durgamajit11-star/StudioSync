@@ -36,7 +36,7 @@
                 <i class="bi bi-cash-coin"></i>
             </div>
             <div class="stat-content">
-                <span class="stat-label">Total Earnings</span>
+                <span class="stat-label">Net Earnings</span>
                 <h2 class="stat-value">₹{{ total_earnings|default:0 }}</h2>
                 <small class="stat-trend">📈 +15% vs last month</small>
             </div>
@@ -49,7 +49,7 @@
                 <i class="bi bi-hourglass-split"></i>
             </div>
             <div class="stat-content">
-                <span class="stat-label">Pending Payment</span>
+                <span class="stat-label">Pending Payout</span>
                 <h2 class="stat-value">₹{{ pending_amount|default:0 }}</h2>
                 <small class="stat-trend">⏳ Awaiting completion</small>
             </div>
@@ -124,6 +124,14 @@
             <div class="card-body">
                 <div class="metrics-list">
                     <div class="metric-row">
+                        <span class="metric-label">Gross Collected</span>
+                        <span class="metric-value">Rs. {{ gross_collected|floatformat:2 }}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Platform Commission</span>
+                        <span class="metric-value">Rs. {{ commission_paid|floatformat:2 }}</span>
+                    </div>
+                    <div class="metric-row">
                         <span class="metric-label">Average Booking Value</span>
                         <span class="metric-value">₹{{ avg_booking_value|floatformat:2 }}</span>
                     </div>
@@ -155,7 +163,7 @@
                     <div class="service-item">
                         <div class="service-rank">{{ forloop.counter }}</div>
                         <div class="service-details">
-                            <span class="service-name">{{ service.service__service_name|default:'General Session' }}</span>
+                            <span class="service-name">{{ service.booking__service__service_name|default:'General Session' }}</span>
                             <small class="text-muted">{{ service.bookings_count }} bookings • ₹{{ service.revenue|floatformat:2 }}</small>
                         </div>
                     </div>
@@ -183,8 +191,10 @@
                     <tr>
                         <th>Client</th>
                         <th>Booking Details</th>
-                        <th>Amount</th>
+                        <th>Net Amount</th>
+                        <th>Commission</th>
                         <th>Status</th>
+                        <th>Payout</th>
                         <th>Date</th>
                         <th style="width: 100px;">Actions</th>
                     </tr>
@@ -200,10 +210,16 @@
                             <span>{{ payment.booking.event_type }}</span>
                             <small class="d-block text-muted">{{ payment.booking.date|date:"M d, Y" }}</small>
                         </td>
-                        <td class="fw-bold">₹{{ payment.amount }}</td>
+                        <td class="fw-bold">₹{{ payment.studio_payout_amount }}</td>
+                        <td>₹{{ payment.commission_amount }}</td>
                         <td>
                             <span class="badge {% if payment.status == 'Completed' %}bg-success{% elif payment.status == 'Pending' %}bg-warning{% else %}bg-danger{% endif %}">
                                 {{ payment.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge {% if payment.payout_status == 'Paid' %}bg-success{% elif payment.payout_status == 'Ready' %}bg-primary{% elif payment.payout_status == 'Hold' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                {{ payment.payout_status }}
                             </span>
                         </td>
                         <td>{{ payment.created_at|date:"M d, Y" }}</td>

@@ -1,10 +1,11 @@
 {% extends "admin/dashboard/admin_base.html" %}
 {% block page_title %}Payments Control Center{% endblock %}
-{% block page_description %}Audit transaction flow, monitor failures, and track settlement performance.{% endblock %}
+{% block page_description %}Audit transaction flow, commission, and studio payout status.{% endblock %}
 
 {% block page_actions %}
 <span class="metric-tag">Total: {{ stats.total_count }}</span>
 <span class="metric-tag">Success: {{ stats.completion_rate }}%</span>
+<span class="metric-tag">Commission: Rs. {{ stats.commission_amount }}</span>
 {% endblock %}
 
 {% block admin_content %}
@@ -31,7 +32,31 @@
     <div class="col-md-3">
         <div class="stat-card">
             <h6 class="text-muted mb-1">Collected Revenue</h6>
-            <h3 class="fw-bold">₹ {{ stats.total_amount }}</h3>
+            <h3 class="fw-bold">Rs. {{ stats.total_amount }}</h3>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <h6 class="text-muted mb-1">Platform Commission</h6>
+            <h3 class="fw-bold">Rs. {{ stats.commission_amount }}</h3>
+            <small class="text-muted">10% on completed bookings</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <h6 class="text-muted mb-1">Studio Earnings</h6>
+            <h3 class="fw-bold">Rs. {{ stats.studio_payout_amount }}</h3>
+            <small class="text-muted">Net amount owed to studios</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <h6 class="text-muted mb-1">Ready for Payout</h6>
+            <h3 class="fw-bold">Rs. {{ stats.payout_ready_amount }}</h3>
+            <small class="text-muted">Completed payments not marked paid</small>
         </div>
     </div>
 </div>
@@ -79,8 +104,12 @@
                     <th>Studio</th>
                     <th>Method</th>
                     <th>Amount</th>
+                    <th>Commission</th>
+                    <th>Studio Payout</th>
                     <th>Status</th>
+                    <th>Payout</th>
                     <th>Date</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -93,17 +122,38 @@
                     </td>
                     <td>{{ payment.booking.studio.studio_name|default:'-' }}</td>
                     <td>{{ payment.payment_method }}</td>
-                    <td>₹ {{ payment.amount }}</td>
+                    <td>Rs. {{ payment.amount }}</td>
+                    <td>Rs. {{ payment.commission_amount }}</td>
+                    <td>Rs. {{ payment.studio_payout_amount }}</td>
                     <td>
                         <span class="badge {% if payment.status == 'Completed' %}text-bg-success{% elif payment.status == 'Pending' or payment.status == 'Processing' %}text-bg-warning{% elif payment.status == 'Failed' %}text-bg-danger{% else %}text-bg-secondary{% endif %}">
                             {{ payment.status }}
                         </span>
                     </td>
+                    <td>
+                        <span class="badge {% if payment.payout_status == 'Paid' %}text-bg-success{% elif payment.payout_status == 'Ready' %}text-bg-primary{% elif payment.payout_status == 'Hold' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">
+                            {{ payment.payout_status }}
+                        </span>
+                        {% if payment.payout_reference %}
+                        <div class="small text-muted">{{ payment.payout_reference }}</div>
+                        {% endif %}
+                    </td>
                     <td>{{ payment.created_at|date:"M d, Y H:i" }}</td>
+                    <td>
+                        {% if payment.status == 'Completed' and payment.payout_status != 'Paid' %}
+                        <form method="POST" action="{% url 'mark_studio_payout_paid' payment.id %}" class="d-flex gap-1">
+                            {% csrf_token %}
+                            <input type="text" name="payout_reference" class="form-control form-control-sm" placeholder="Payout ref">
+                            <button type="submit" class="btn btn-sm btn-outline-success">Paid</button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted small">-</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center py-5 text-muted">No payments found for selected filters.</td>
+                    <td colspan="11" class="text-center py-5 text-muted">No payments found for selected filters.</td>
                 </tr>
                 {% endfor %}
             </tbody>

@@ -285,6 +285,7 @@ PAYMENT_GATEWAY_ENABLED = (
     and bool(RAZORPAY_KEY_ID)
     and bool(RAZORPAY_KEY_SECRET)
 )
+PLATFORM_COMMISSION_PERCENT = os.getenv('PLATFORM_COMMISSION_PERCENT', '10.00')
 
 
 # ==================== REST FRAMEWORK SETTINGS ====================
