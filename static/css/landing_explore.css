@@ -238,6 +238,8 @@ h3,
     border: 1px solid rgba(255, 255, 255, 0.14);
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
     transition: 0.3s;
+    color: inherit;
+    text-decoration: none;
 }
 
 .slide-card:hover {

@@ -208,6 +208,44 @@ class UserDashboardPriceRenderingTests(TestCase):
 		self.assertContains(response, 'From ₹ 2000')
 
 
+class PublicLandingStudioTests(TestCase):
+	def setUp(self):
+		user_model = get_user_model()
+		self.studio_owner = user_model.objects.create_user(
+			username='landingstudio',
+			password='Pass123!@#',
+			role='STUDIO',
+			email='landingstudio@example.com',
+		)
+		self.studio = Studio.objects.create(
+			user=self.studio_owner,
+			studio_name='Real Landing Studio',
+			location='Nagpur',
+			price_per_hour=2200,
+			is_verified=True,
+		)
+
+	def test_landing_page_shows_registered_studio(self):
+		response = self.client.get(reverse('landing'))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'Real Landing Studio')
+		self.assertContains(response, 'Nagpur')
+
+	def test_landing_explore_page_shows_registered_studio(self):
+		response = self.client.get(reverse('landing_explore_studio'))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'Real Landing Studio')
+		self.assertContains(response, 'Nagpur')
+
+	def test_landing_explore_search_filters_studios(self):
+		response = self.client.get(reverse('landing_explore_studio'), {'q': 'Nagpur'})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'Real Landing Studio')
+
+
 class StudioBookingCompletionFlowTests(TestCase):
 	def setUp(self):
 		user_model = get_user_model()

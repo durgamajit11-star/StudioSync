@@ -67,10 +67,10 @@
 
     <!-- SEARCH -->
 
-    <div class="search-box">
-        <input type="text" placeholder="Search city or studio name...">
-        <button>Search</button>
-    </div>
+    <form class="search-box" method="get">
+        <input type="text" name="q" value="{{ query }}" placeholder="Search city or studio name...">
+        <button type="submit">Search</button>
+    </form>
 
     <section class="trending-section">
 
@@ -83,6 +83,20 @@
             </button>
 
             <div class="studio-slider" id="studioSlider">
+                {% for studio in trending_studios %}
+                <a class="slide-card" href="{% url 'studios:studio_detail' studio.id %}">
+                    <img src="{{ studio.landing_image_url }}" alt="{{ studio.studio_name }}">
+                    <h4>{{ studio.studio_name }}</h4>
+                    <p>{{ studio.location }} - Rs. {{ studio.display_price|floatformat:0 }}</p>
+                </a>
+                {% empty %}
+                <div class="slide-card">
+                    <img src="{% static 'images/s1.png' %}" alt="No studios">
+                    <h4>No studios yet</h4>
+                    <p>Registered studios will appear here</p>
+                </div>
+                {% endfor %}
+                {% if False %}
 
                 <div class="slide-card">
                     <img src="https://images.unsplash.com/photo-1502920917128-1aa500764cbd">
@@ -126,6 +140,7 @@
                     <p>Chennai • ₹3000</p>
                 </div>
 
+                {% endif %}
             </div>
 
             <button class="slider-btn right" onclick="scrollSlider(1)">
@@ -139,6 +154,33 @@
     <!-- STUDIO GRID -->
 
     <div class="studio-container">
+        {% for studio in studios %}
+        <div class="studio-card">
+            <div class="studio-img">
+                <img src="{{ studio.landing_image_url }}" alt="{{ studio.studio_name }}">
+            </div>
+            <div class="card-body">
+                <h3>{{ studio.studio_name }}</h3>
+                <div class="location"><i class="fa-solid fa-location-dot"></i> {{ studio.location }}</div>
+                <div class="rating">{{ studio.display_rating|floatformat:1 }} / 5 ({{ studio.display_review_count }} reviews)</div>
+                <div class="price">Starting Rs. {{ studio.display_price|floatformat:0 }}</div>
+                <a href="{% url 'studios:studio_detail' studio.id %}" class="btn">View Studio</a>
+            </div>
+        </div>
+        {% empty %}
+        <div class="studio-card">
+            <div class="studio-img">
+                <img src="{% static 'images/s1.png' %}" alt="No studios">
+            </div>
+            <div class="card-body">
+                <h3>No studios found</h3>
+                <div class="location"><i class="fa-solid fa-location-dot"></i> Try another search</div>
+                <div class="price">Registered studios will appear here</div>
+                <a href="{% url 'auth_page' %}?role=studio" class="btn">Register Studio</a>
+            </div>
+        </div>
+        {% endfor %}
+        {% if False %}
 
         <!-- 1 -->
         <div class="studio-card">
@@ -280,6 +322,7 @@
             </div>
         </div>
 
+        {% endif %}
     </div>
 
     <section class="cta-band">

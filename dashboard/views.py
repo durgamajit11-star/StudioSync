@@ -29,14 +29,88 @@ from notifications.services import create_notification
 logger = logging.getLogger(__name__)
 
 
+def _public_studio_queryset():
+    studios = (
+        Studio.objects.select_related('category', 'user')
+        .filter(user__is_active=True)
+        .annotate(
+            review_count=Count('reviews', distinct=True),
+            avg_rating=Avg('reviews__rating'),
+            min_service_price=Min('services__price'),
+            booking_count=Count('booking_requests', distinct=True),
+        )
+    )
+    verified_studios = studios.filter(is_verified=True)
+    if verified_studios.exists():
+        return verified_studios
+    return studios
+
+
+def _prepare_public_studios(studios):
+    prepared = []
+    fallback_images = [
+        '/static/images/s1.png',
+        '/static/images/s2.png',
+        '/static/images/s3.png',
+        '/static/images/s4.jpg',
+    ]
+    for index, studio in enumerate(studios):
+        image_url = None
+        if studio.profile_image:
+            image_url = studio.profile_image.url
+        if not image_url:
+            first_gallery_image = studio.studio_images.filter(image__isnull=False).first()
+            if first_gallery_image and first_gallery_image.image:
+                image_url = first_gallery_image.image.url
+        if not image_url:
+            first_url_image = studio.studio_images.filter(image_url__isnull=False).exclude(image_url='').first()
+            if first_url_image:
+                image_url = first_url_image.image_url
+        if not image_url:
+            image_url = fallback_images[index % len(fallback_images)]
+
+        starting_price = studio.min_service_price or studio.price_per_hour or 0
+        studio.landing_image_url = image_url
+        studio.display_rating = studio.avg_rating or studio.rating or 0
+        studio.display_review_count = studio.review_count or 0
+        studio.display_price = starting_price
+        prepared.append(studio)
+    return prepared
+
+
 @never_cache
 def landing_page(request):
-    return render(request, "landing.html")
+    featured_studios = _prepare_public_studios(
+        _public_studio_queryset().order_by('-is_featured', '-avg_rating', '-booking_count', '-created_at')[:3]
+    )
+    return render(request, "landing.html", {
+        'featured_studios': featured_studios,
+        'featured_studio_count': _public_studio_queryset().count(),
+    })
 
 
 @never_cache
 def landing_explore_studio(request):
-    return render(request, "landing_explore_studio.html")
+    query = (request.GET.get('q') or '').strip()
+    studios = _public_studio_queryset()
+    if query:
+        studios = studios.filter(
+            Q(studio_name__icontains=query)
+            | Q(location__icontains=query)
+            | Q(category__name__icontains=query)
+            | Q(specializations__icontains=query)
+        )
+
+    studios = studios.order_by('-is_featured', '-avg_rating', '-booking_count', '-created_at')
+    prepared_studios = _prepare_public_studios(studios)
+    trending_studios = prepared_studios[:8]
+
+    return render(request, "landing_explore_studio.html", {
+        'studios': prepared_studios,
+        'trending_studios': trending_studios,
+        'query': query,
+        'studio_count': len(prepared_studios),
+    })
 
 
 @login_required

@@ -299,6 +299,36 @@
         </div>
 
         <div class="row g-4">
+            {% for studio in featured_studios %}
+            <div class="col-md-4">
+                <div class="studio-card">
+                    <div class="studio-image">
+                        <img src="{{ studio.landing_image_url }}" class="img-fluid" alt="{{ studio.studio_name }}">
+                        {% if forloop.first %}<span class="badge-ai">AI Recommended</span>{% endif %}
+                    </div>
+                    <div class="studio-body">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <h5 class="mb-0">{{ studio.studio_name }}</h5>
+                            {% if studio.is_verified %}<span class="verified">Verified</span>{% endif %}
+                        </div>
+                        <p class="location mb-2">{{ studio.location }}</p>
+                        <div class="rating mb-2">
+                            {{ studio.display_rating|floatformat:1 }} <span class="text-secondary">({{ studio.display_review_count }} reviews)</span>
+                        </div>
+                        <div class="price mb-3">Starting from <strong>Rs. {{ studio.display_price|floatformat:0 }}</strong></div>
+                        <a href="{% url 'studios:studio_detail' studio.id %}" class="btn btn-neon w-100">View Studio</a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="glass p-4 text-center">
+                    <h5>No studios are live yet</h5>
+                    <p class="text-secondary mb-0">Registered studios will appear here after profile setup.</p>
+                </div>
+            </div>
+            {% endfor %}
+            {% if False %}
 
             <!-- Studio Card 1 -->
             <div class="col-md-4">
@@ -376,6 +406,7 @@
                 </div>
             </div>
 
+            {% endif %}
         </div>
     </section>
 
