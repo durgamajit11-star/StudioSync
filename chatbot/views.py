@@ -1,9 +1,10 @@
 import json
 import re
+from collections import Counter
 
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
 from django.db.models import Q
+from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from .models import ChatMessage, ChatbotFAQ
@@ -27,6 +28,147 @@ ROLE_ALLOWED_INTENTS = {
 INTENT_HINT = {
     'studio_ops': 'studio-owner workflows',
     'admin_ops': 'admin workflows',
+    'sensitive_data': 'private or security-sensitive information',
+}
+
+ROLE_LABELS = {
+    'USER': 'user',
+    'STUDIO': 'studio owner',
+    'ADMIN': 'admin',
+}
+
+ROLE_RESTRICTED_PATTERNS = {
+    'USER': {
+        'studio_ops': [
+            'studio dashboard', 'studio owner', 'portfolio', 'studio profile', 'services setup',
+            'booking approval', 'approve booking', 'cancel client booking', 'earnings',
+            'payout', 'commission', 'studio payout', 'owner account',
+        ],
+        'admin_ops': [
+            'admin', 'manage users', 'manage studios', 'verify studio', 'approve studio',
+            'reject studio', 'delete user', 'block user', 'moderation', 'admin panel',
+            'payment control', 'payout command',
+        ],
+    },
+    'STUDIO': {
+        'admin_ops': [
+            'admin', 'manage users', 'manage studios', 'verify studio', 'approve studio',
+            'reject studio', 'delete user', 'block user', 'moderation', 'admin panel',
+            'all platform payments', 'all users', 'all studios',
+        ],
+    },
+    'ADMIN': {},
+}
+
+SENSITIVE_PATTERNS = [
+    'password', 'otp', 'secret key', 'api key', 'private key', 'razorpay key', 'database',
+    'db.sqlite', 'session cookie', 'csrf token', 'auth token', 'export all emails',
+    'download user data', 'bank account number', 'upi id of user', 'license document',
+    'bypass', 'hack', 'impersonate', 'login as', 'credentials',
+]
+
+ROLE_KNOWLEDGE_BASE = {
+    'USER': [
+        {
+            'title': 'Explore and book studios',
+            'keywords': ['explore', 'find', 'search', 'book', 'booking', 'studio', 'recommendation'],
+            'answer': (
+                "Use Explore Studios or AI Recommendations to compare verified studios. Open a studio, review "
+                "portfolio, pricing, rating, and services, then choose Book Studio to submit a booking request."
+            ),
+        },
+        {
+            'title': 'Payments and refunds',
+            'keywords': ['payment', 'pay', 'refund', 'transaction', 'upi', 'receipt'],
+            'answer': (
+                "User payments go to the StudioSync admin account first. After payment, StudioSync records the "
+                "platform split and the studio payout status. You can track receipts and refund requests from Payments."
+            ),
+        },
+        {
+            'title': 'Reviews',
+            'keywords': ['review', 'rating', 'feedback'],
+            'answer': (
+                "You can review a studio after a confirmed booking. Use Reviews to add, edit, or delete your own "
+                "feedback."
+            ),
+        },
+        {
+            'title': 'Profile and notifications',
+            'keywords': ['profile', 'account', 'notification', 'settings'],
+            'answer': (
+                "Use Profile Settings to manage your account and notification preferences. Booking and payment "
+                "updates appear in Notifications."
+            ),
+        },
+    ],
+    'STUDIO': [
+        {
+            'title': 'Booking operations',
+            'keywords': ['booking', 'approve', 'cancel', 'complete', 'schedule', 'client'],
+            'answer': (
+                "Use Studio Bookings to review client requests, approve valid bookings, cancel unavailable slots, "
+                "send client notifications, and mark confirmed shoots completed."
+            ),
+        },
+        {
+            'title': 'Payout and earnings ledger',
+            'keywords': ['earning', 'payout', 'payment', 'commission', 'transaction', 'revenue'],
+            'answer': (
+                "StudioSync collects client payments first. Your Earnings page shows gross paid, 10% admin "
+                "commission, your 90% net payout, payout status, transfer reference, and notes."
+            ),
+        },
+        {
+            'title': 'Portfolio and profile',
+            'keywords': ['portfolio', 'profile', 'service', 'price', 'cover', 'license'],
+            'answer': (
+                "Use Portfolio to manage work samples and Studio Profile to update studio details, services, "
+                "pricing, contact information, verification items, and cover image."
+            ),
+        },
+        {
+            'title': 'Reviews and reputation',
+            'keywords': ['review', 'rating', 'feedback', 'reputation'],
+            'answer': (
+                "Use Studio Reviews to monitor client ratings and feedback trends. Strong reviews improve trust "
+                "and help users compare your studio."
+            ),
+        },
+    ],
+    'ADMIN': [
+        {
+            'title': 'Studio verification',
+            'keywords': ['studio', 'verify', 'approve', 'reject', 'license', 'review studio'],
+            'answer': (
+                "Use Manage Studios to inspect license, profile, contact, location, services, portfolio, and reviews. "
+                "Approve only when the verification checklist is credible."
+            ),
+        },
+        {
+            'title': 'Payment and payout command center',
+            'keywords': ['payment', 'payout', 'commission', 'transaction', 'wallet', 'settlement'],
+            'answer': (
+                "Use Payment & Payout Command Center to audit payments collected by StudioSync, track 10% platform "
+                "commission, and mark the 90% studio payout paid after recording transfer reference and notes."
+            ),
+        },
+        {
+            'title': 'User and admin management',
+            'keywords': ['user', 'admin', 'manage', 'block', 'delete', 'status'],
+            'answer': (
+                "Use Manage Users and Manage Admins to review accounts and apply minimal necessary actions. Avoid "
+                "sharing private user details outside the admin console."
+            ),
+        },
+        {
+            'title': 'Bookings oversight',
+            'keywords': ['booking', 'cancel', 'monitor', 'dispute'],
+            'answer': (
+                "Use Bookings to monitor platform activity and intervene only when policy or support evidence requires it."
+            ),
+        },
+    ],
 }
 
 
@@ -62,7 +204,7 @@ def _chatbot_messages_for_role(request, expected_role=None):
         return JsonResponse(
             {
                 'error': 'Forbidden',
-                'message': f'This chatbot endpoint is restricted to {expected_role.lower()} role.'
+                'message': f'This chatbot endpoint is restricted to {expected_role.lower()} role.',
             },
             status=403,
         )
@@ -133,35 +275,43 @@ def _chatbot_messages_for_role(request, expected_role=None):
 
 
 def generate_bot_response(user_message, user):
-    """Generate chatbot response based on user message."""
-
+    """Generate a role-safe chatbot response."""
     text = (user_message or '').strip().lower()
     role = get_user_role(user)
 
     if not text:
-        return "Please type a question and I’ll help.", None, None, 'fallback'
+        return "Please type a question and I will help.", None, None, 'fallback'
 
-    intent = classify_intent(text)
+    blocked_intent = detect_policy_violation(text, role)
+    if blocked_intent:
+        return build_blocked_response(role, blocked_intent)
+
+    intent = classify_intent(text, role)
     allowed_intents = ROLE_ALLOWED_INTENTS.get(role, set())
     if intent not in allowed_intents:
-        target = INTENT_HINT.get(intent, 'restricted workflows')
-        blocked_reason = f'{intent} is not allowed for role {role}.'
-        policy_notice = build_policy_notice(role, intent, blocked=True)
-        return (
-            f"I can’t share {target} in this account. Please use the correct role dashboard for that request.",
-            blocked_reason,
-            policy_notice,
-            'guardrail',
-        )
+        return build_blocked_response(role, intent)
 
     faq_answer = match_faq_answer(text, role)
     if faq_answer:
         return faq_answer, None, None, 'faq_hit'
 
+    if intent == 'admin_ops':
+        admin_response = (
+            "Admin operations checklist:\n"
+            "1. Confirm the target entity (user, studio, booking, or payment).\n"
+            "2. Verify supporting evidence and recent activity logs.\n"
+            "3. Apply the minimal action required by policy.\n"
+            "4. Record reason and outcome in admin notes."
+        )
+        return admin_response, None, build_policy_notice(role, intent, blocked=False), 'admin_safe'
+
+    ai_answer = generate_role_safe_ai_answer(text, role)
+    if ai_answer:
+        return ai_answer, None, build_policy_notice(role, intent, blocked=False), 'standard'
+
     if intent == 'greeting':
         return (
-            "Hello! I’m the StudioSync assistant. I can explain the platform, bookings, payments, reviews, "
-            "dashboards, and studio-owner tools."
+            "Hello! I am the StudioSync assistant. I can explain the allowed workflows for your current role."
         ), None, None, 'intent_answer'
 
     if intent == 'platform_overview':
@@ -170,7 +320,7 @@ def generate_bot_response(user_message, user):
     if intent == 'booking_help':
         return (
             "Bookings work like this: browse studios, open a studio profile, choose a date, time slot, and any "
-            "extra service, then complete payment to confirm the booking."
+            "extra service, then complete payment after the booking is approved."
         ), None, None, 'intent_answer'
 
     if intent == 'pricing_help':
@@ -181,8 +331,8 @@ def generate_bot_response(user_message, user):
 
     if intent == 'payment_help':
         return (
-            "Payments are handled from the booking and payment pages. You can review the amount, choose a "
-            "payment method, and request a refund from payment history where supported."
+            "Payments are handled from the booking and payment pages. StudioSync collects payment first, then the "
+            "platform split and studio payout status are tracked in the dashboard."
         ), None, None, 'intent_answer'
 
     if intent == 'review_help':
@@ -206,26 +356,44 @@ def generate_bot_response(user_message, user):
             "profile details from the studio panel."
         ), None, None, 'intent_answer'
 
-    if intent == 'admin_ops':
-        admin_response = (
-            "Admin operations checklist:\n"
-            "1. Confirm the target entity (user, studio, booking, or payment).\n"
-            "2. Verify supporting evidence and recent activity logs.\n"
-            "3. Apply the minimal action required by policy.\n"
-            "4. Record reason and outcome in admin notes."
-        )
-        return admin_response, None, build_policy_notice(role, intent, blocked=False), 'admin_safe'
-
     if intent == 'support':
         return (
-            "If you need help, ask here about bookings, payments, reviews, dashboards, or studio setup. I’ll "
-            "translate the platform flow into simple steps."
+            "If you need help, ask here about bookings, payments, reviews, dashboards, or setup. I will keep answers "
+            "inside your role permissions."
         ), None, None, 'intent_answer'
 
     if intent == 'thanks':
-        return "You’re welcome. If you want, I can also explain any page or workflow step by step.", None, None, 'intent_answer'
+        return "You are welcome. I can also explain any allowed page or workflow step by step.", None, None, 'intent_answer'
 
     return platform_overview(user), None, None, 'fallback'
+
+
+def detect_policy_violation(text, role):
+    if contains_any(text, SENSITIVE_PATTERNS):
+        return 'sensitive_data'
+
+    for intent, patterns in ROLE_RESTRICTED_PATTERNS.get(role, {}).items():
+        if contains_any(text, patterns):
+            return intent
+
+    return None
+
+
+def build_blocked_response(role, intent):
+    target = INTENT_HINT.get(intent, 'restricted workflows')
+    blocked_reason = f'{intent} is not allowed for role {role}.'
+    policy_notice = build_policy_notice(role, intent, blocked=True)
+    if intent == 'sensitive_data':
+        response = (
+            "I cannot share private account, payment, credential, document, or system-security information. "
+            "Use the approved dashboard screens and permissions for that request."
+        )
+    else:
+        response = (
+            f"I cannot share {target} in this {ROLE_LABELS.get(role, role.lower())} account. "
+            "Please use the correct role dashboard for that request."
+        )
+    return response, blocked_reason, policy_notice, 'guardrail'
 
 
 def build_policy_notice(role, intent, blocked):
@@ -235,7 +403,7 @@ def build_policy_notice(role, intent, blocked):
     if role == 'ADMIN' and intent == 'admin_ops':
         return 'Safety mode active: validate evidence and record action rationale before administrative changes.'
 
-    return None
+    return f'Role-safe AI mode: answer constrained to {ROLE_LABELS.get(role, role.lower())} workflows only.'
 
 
 def get_user_role(user):
@@ -246,9 +414,18 @@ def get_user_role(user):
     return 'USER'
 
 
-def classify_intent(text):
+def classify_intent(text, role=None):
+    role = role or 'USER'
     if contains_any(text, ['hello', 'hi', 'hey', 'greet', 'good morning', 'good evening']):
         return 'greeting'
+    if contains_any(text, ['admin', 'moderation', 'manage users', 'manage studios']):
+        return 'admin_ops'
+    if contains_any(text, ['studio owner', 'studio dashboard', 'portfolio', 'earnings', 'payout', 'commission']):
+        if role == 'USER':
+            return 'studio_ops'
+        if role == 'ADMIN' and contains_any(text, ['payout', 'commission']):
+            return 'admin_ops'
+        return 'studio_ops'
     if contains_any(text, ['what can you do', 'platform', 'functionality', 'features', 'how does it work']):
         return 'platform_overview'
     if contains_any(text, ['book', 'booking', 'reserve', 'reservation', 'studio booking']):
@@ -263,10 +440,6 @@ def classify_intent(text):
         return 'profile_help'
     if contains_any(text, ['dashboard', 'menu', 'navigation', 'sidebar']):
         return 'dashboard_help'
-    if contains_any(text, ['studio owner', 'studio dashboard', 'portfolio', 'earnings']):
-        return 'studio_ops'
-    if contains_any(text, ['admin', 'moderation', 'manage users', 'manage studios']):
-        return 'admin_ops'
     if contains_any(text, ['support', 'contact', 'help', 'issue', 'problem']):
         return 'support'
     if contains_any(text, ['thank', 'thanks', 'appreciate']):
@@ -276,6 +449,39 @@ def classify_intent(text):
 
 def contains_any(text, phrases):
     return any(phrase in text for phrase in phrases)
+
+
+def generate_role_safe_ai_answer(text, role):
+    """Small local retrieval layer that behaves like role-constrained AI without external data leakage."""
+    cards = ROLE_KNOWLEDGE_BASE.get(role, ROLE_KNOWLEDGE_BASE['USER'])
+    tokens = Counter(re.findall(r'[a-z0-9]+', text))
+    scored_cards = []
+
+    for card in cards:
+        score = 0
+        for keyword in card['keywords']:
+            keyword_tokens = keyword.split()
+            if keyword in text:
+                score += 4
+            score += sum(tokens.get(token, 0) for token in keyword_tokens)
+        if score:
+            scored_cards.append((score, card))
+
+    if not scored_cards:
+        return None
+
+    scored_cards.sort(key=lambda item: item[0], reverse=True)
+    selected = [card for _, card in scored_cards[:2]]
+    lines = [f"Role-safe AI summary for {ROLE_LABELS.get(role, role.lower())} workflows:"]
+    for index, card in enumerate(selected, start=1):
+        lines.append(f"{index}. {card['title']}: {card['answer']}")
+
+    if role != 'ADMIN':
+        lines.append("I cannot help with admin-only controls or private platform records from this role.")
+    else:
+        lines.append("Keep admin actions evidence-based and avoid exposing private credentials or documents in chat.")
+
+    return "\n".join(lines)
 
 
 def match_faq_answer(text, role):
@@ -362,10 +568,9 @@ def dashboard_overview(user):
 
 @login_required
 def clear_chat_history(request):
-    """Clear chat history for the current user"""
+    """Clear chat history for the current user."""
     try:
         ChatMessage.objects.filter(user=request.user).delete()
         return JsonResponse({'success': True, 'message': 'Chat history cleared'})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
-

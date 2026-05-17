@@ -32,11 +32,11 @@
                     {% endif %}
                 </div>
                 {% if active_role == 'ADMIN' %}
-                <div class="chat-header-subtitle chat-header-subtitle-admin">Admin assistant for moderation, studio verification, booking oversight, and payment monitoring.</div>
+                <div class="chat-header-subtitle chat-header-subtitle-admin">Role-safe admin assistant for moderation, studio verification, booking oversight, and payment monitoring.</div>
                 {% elif active_role == 'STUDIO' %}
-                <div class="chat-header-subtitle chat-header-subtitle-studio">Studio owner assistant for portfolio, bookings, reviews, profile setup, and earnings workflows.</div>
+                <div class="chat-header-subtitle chat-header-subtitle-studio">Role-safe studio assistant for portfolio, bookings, reviews, profile setup, and earnings workflows.</div>
                 {% else %}
-                <div class="chat-header-subtitle chat-header-subtitle-user">User assistant for exploring studios, bookings, payments, reviews, and dashboard guidance.</div>
+                <div class="chat-header-subtitle chat-header-subtitle-user">Role-safe user assistant for exploring studios, bookings, payments, reviews, and dashboard guidance.</div>
                 {% endif %}
             </div>
             <div class="d-flex align-items-center gap-2">
@@ -51,7 +51,7 @@
 
         <!-- Messages -->
         <div class="chat-body" id="chatBody">
-            <div class="bot-message">👋 Hello! Ask me anything about StudioSync.</div>
+            <div class="bot-message bot-ai-message">Hello! I answer only inside your current StudioSync role and block restricted workflows.</div>
             <div class="chat-suggestions mt-2 d-flex flex-wrap gap-2">
                 {% if active_role == 'ADMIN' %}
                 <button type="button" class="btn btn-sm btn-outline-secondary chat-suggestion" data-prompt="How do I verify and moderate studio accounts?">Studio moderation</button>

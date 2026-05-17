@@ -164,7 +164,7 @@ function initializeChatbotWidget() {
     }
 
     function renderStarterQuestions() {
-        chatBody.appendChild(createMessageElement('bot-message', 'Hello! Ask me anything about StudioSync.'));
+        chatBody.appendChild(createMessageElement('bot-message bot-ai-message', 'Hello! I answer only inside your current StudioSync role and block restricted workflows.'));
         addSuggestionButtons(roleSuggestions[role] || roleSuggestions.USER);
     }
 
@@ -238,7 +238,12 @@ function initializeChatbotWidget() {
                 return;
             }
 
-            appendMessage('bot-message', data.bot_response || 'I am here to help with StudioSync.');
+            const botClass = data.response_mode === 'standard'
+                ? 'bot-message bot-ai-message'
+                : data.response_mode === 'guardrail'
+                    ? 'bot-message bot-guardrail-message'
+                    : 'bot-message';
+            appendMessage(botClass, data.bot_response || 'I am here to help with StudioSync.');
             if (data.policy_notice) {
                 appendMessage('bot-policy-message', data.policy_notice);
             }
