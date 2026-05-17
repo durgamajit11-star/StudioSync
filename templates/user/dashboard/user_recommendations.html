@@ -7,76 +7,117 @@
 
 <link rel="stylesheet" href="{% static 'css/pages/user/dashboard/user_recommendations.css' %}">
 
-<div class="container-fluid px-3 px-md-4">
-    <div class="page-header mb-4">
-        <h3>AI Recommended Studios</h3>
-        <p>Smart suggestions powered by your activity and preferences</p>
+<div class="ai-rec-page container-fluid px-3 px-md-4">
+    <div class="ai-rec-header mb-4">
+        <div>
+            <div class="eyebrow"><i class="bi bi-stars"></i> StudioSync AI</div>
+            <h3>Recommended Studios</h3>
+            <p>Personalized studio matches ranked by quality, location, pricing, and your recent activity.</p>
+        </div>
+        <div class="header-actions">
+            <form method="post" action="{% url 'recommendations:refresh_recommendations' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-refresh">
+                    <i class="bi bi-arrow-repeat"></i>
+                    Refresh
+                </button>
+            </form>
+            <a href="{% url 'explore_studios' %}" class="btn btn-explore">
+                <i class="bi bi-images"></i>
+                Explore All
+            </a>
+        </div>
     </div>
 
     {% if recommendations %}
-    <div class="row g-4">
-        {% for rec in recommendations %}
-        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
-            <div class="rec-card">
-                <div class="fav-btn">
-                    <i class="bi bi-heart text-white"></i>
-                </div>
+    <div class="insight-strip mb-4">
+        <div class="insight-item">
+            <span>{{ recommendations|length }}</span>
+            <small>AI matches</small>
+        </div>
+        <div class="insight-item">
+            <span>Verified</span>
+            <small>Studios only</small>
+        </div>
+        <div class="insight-item">
+            <span>Live</span>
+            <small>Updated from your activity</small>
+        </div>
+    </div>
 
+    <div class="recommendation-grid">
+        {% for rec in recommendations %}
+        <article class="rec-card">
+            <div class="rec-media">
                 {% if rec.studio.profile_image|storage_exists %}
                 <img src="{{ rec.studio.profile_image.url }}" class="rec-img" alt="{{ rec.studio.studio_name }}">
                 {% else %}
                 <div class="rec-fallback">
-                    <i class="bi bi-camera-fill text-white fs-1"></i>
+                    <i class="bi bi-camera-fill"></i>
                 </div>
                 {% endif %}
+                <div class="media-shade"></div>
+                <span class="match-badge">{{ rec.match_percent }}% match</span>
+                {% if rec.studio.is_featured %}
+                <span class="featured-badge"><i class="bi bi-award"></i> Featured</span>
+                {% endif %}
+            </div>
 
-                <div class="p-3">
-                    <div class="d-flex justify-content-between mb-2">
-                        <div class="rec-title">{{ rec.studio.studio_name }}</div>
-                        <span class="match-badge">{{ rec.match_percent }}%</span>
-                    </div>
+            <div class="rec-body">
+                <div class="rec-heading">
+                    <h4>{{ rec.studio.studio_name }}</h4>
+                    <span><i class="bi bi-shield-check"></i> Verified</span>
+                </div>
 
-                    <div class="match-bar">
-                        <div class="match-bar-fill" style="width: {{ rec.match_percent }}%;"></div>
-                    </div>
+                <div class="match-bar" aria-label="AI match score">
+                    <div class="match-bar-fill" style="width: {{ rec.match_percent }}%;"></div>
+                </div>
 
-                    <div class="rec-meta mb-2">
-                        <i class="bi bi-geo-alt"></i>
-                        {{ rec.display_location }}
-                    </div>
+                <div class="meta-row">
+                    <span><i class="bi bi-geo-alt"></i> {{ rec.display_location }}</span>
+                    <span><i class="bi bi-cash-coin"></i> {{ rec.display_price }}</span>
+                </div>
 
-                    <div class="small text-light mb-2" style="opacity:0.85;">
-                        {{ rec.reason }}
-                    </div>
+                <p class="rec-reason">{{ rec.reason }}</p>
 
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-warning"><i class="bi bi-star-fill"></i> {{ rec.display_rating|floatformat:1 }}/5</span>
-                        <span class="rec-meta">{{ rec.studio.experience_years }}+ yrs</span>
-                    </div>
+                <div class="signal-row">
+                    <span><i class="bi bi-star-fill"></i> {{ rec.display_rating|floatformat:1 }}/5</span>
+                    <span><i class="bi bi-chat-square-heart"></i> {{ rec.review_count }} reviews</span>
+                    <span><i class="bi bi-briefcase"></i> {{ rec.studio.experience_years }}+ yrs</span>
+                </div>
 
-                    <div class="rec-meta mb-3">
-                        <i class="bi bi-cash-coin"></i> {{ rec.display_price }}
-                    </div>
-
-                    <a href="{% url 'studios:studio_detail' rec.studio.id %}"
-                       class="btn rec-btn w-100 text-white">
-                        View Studio <i class="bi bi-arrow-right"></i>
+                <div class="action-row">
+                    <a href="{% url 'studios:studio_detail' rec.studio.id %}" class="btn btn-view">
+                        <i class="bi bi-eye"></i>
+                        View
+                    </a>
+                    <a href="{% url 'studio_booking' %}?studio_id={{ rec.studio.id }}" class="btn btn-book">
+                        <i class="bi bi-calendar-check"></i>
+                        Book Studio
                     </a>
                 </div>
             </div>
-        </div>
+        </article>
         {% endfor %}
     </div>
     {% else %}
     <div class="empty-box">
-        <i class="bi bi-stars text-info fs-1"></i>
-        <p class="mt-3 text-light">
-            No recommendations yet.<br>
-            Explore studios to unlock AI suggestions.
-        </p>
-        <a href="{% url 'explore_studios' %}" class="btn rec-btn text-white mt-2">
-            Browse Studios
-        </a>
+        <div class="empty-icon"><i class="bi bi-stars"></i></div>
+        <h4>No recommendations yet</h4>
+        <p>Browse or book studios and StudioSync AI will build a personalized shortlist for you.</p>
+        <div class="empty-actions">
+            <a href="{% url 'explore_studios' %}" class="btn btn-book">
+                <i class="bi bi-images"></i>
+                Browse Studios
+            </a>
+            <form method="post" action="{% url 'recommendations:refresh_recommendations' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-view">
+                    <i class="bi bi-arrow-repeat"></i>
+                    Try Refresh
+                </button>
+            </form>
+        </div>
     </div>
     {% endif %}
 </div>
