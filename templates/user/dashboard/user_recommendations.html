@@ -8,28 +8,22 @@
 <link rel="stylesheet" href="{% static 'css/pages/user/dashboard/user_recommendations.css' %}">
 
 <div class="container-fluid px-3 px-md-4">
-
-    <!-- HEADER -->
     <div class="page-header mb-4">
-        <h3>✨ AI Recommended Studios</h3>
-        <p>Smart suggestions powered by your activity & preferences</p>
+        <h3>AI Recommended Studios</h3>
+        <p>Smart suggestions powered by your activity and preferences</p>
     </div>
 
     {% if recommendations %}
     <div class="row g-4">
-
         {% for rec in recommendations %}
         <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
-
             <div class="rec-card">
-
-                <!-- ❤️ Favorite -->
                 <div class="fav-btn">
                     <i class="bi bi-heart text-white"></i>
                 </div>
 
                 {% if rec.studio.profile_image|storage_exists %}
-                <img src="{{ rec.studio.profile_image.url }}" class="rec-img">
+                <img src="{{ rec.studio.profile_image.url }}" class="rec-img" alt="{{ rec.studio.studio_name }}">
                 {% else %}
                 <div class="rec-fallback">
                     <i class="bi bi-camera-fill text-white fs-1"></i>
@@ -37,69 +31,54 @@
                 {% endif %}
 
                 <div class="p-3">
-
-                    <!-- TITLE -->
                     <div class="d-flex justify-content-between mb-2">
                         <div class="rec-title">{{ rec.studio.studio_name }}</div>
-                        <span class="match-badge">{{ rec.score|floatformat:0 }}%</span>
+                        <span class="match-badge">{{ rec.match_percent }}%</span>
                     </div>
 
-                    <!-- MATCH BAR -->
                     <div class="match-bar">
-                        <div class="match-bar-fill" style="width: {{ rec.score }}%;"></div>
+                        <div class="match-bar-fill" style="width: {{ rec.match_percent }}%;"></div>
                     </div>
 
-                    <!-- LOCATION -->
                     <div class="rec-meta mb-2">
                         <i class="bi bi-geo-alt"></i>
-                        {{ rec.studio.city }}, {{ rec.studio.state }}
+                        {{ rec.display_location }}
                     </div>
 
-                    <!-- REASON -->
                     <div class="small text-light mb-2" style="opacity:0.85;">
                         {{ rec.reason }}
                     </div>
 
-                    <!-- RATING + EXPERIENCE -->
                     <div class="d-flex justify-content-between mb-2">
-                        <span class="text-warning">⭐ {{ rec.studio.average_rating|default:"0" }}/5</span>
+                        <span class="text-warning"><i class="bi bi-star-fill"></i> {{ rec.display_rating|floatformat:1 }}/5</span>
                         <span class="rec-meta">{{ rec.studio.experience_years }}+ yrs</span>
                     </div>
 
-                    <!-- PRICE -->
                     <div class="rec-meta mb-3">
-                        💰 ?{{ rec.studio.price_min }} - ?{{ rec.studio.price_max }}
+                        <i class="bi bi-cash-coin"></i> {{ rec.display_price }}
                     </div>
 
-                    <!-- BUTTON -->
                     <a href="{% url 'studios:studio_detail' rec.studio.id %}"
                        class="btn rec-btn w-100 text-white">
-                        View Studio →
+                        View Studio <i class="bi bi-arrow-right"></i>
                     </a>
-
                 </div>
             </div>
-
         </div>
         {% endfor %}
-
     </div>
-
     {% else %}
-
     <div class="empty-box">
         <i class="bi bi-stars text-info fs-1"></i>
         <p class="mt-3 text-light">
             No recommendations yet.<br>
-            Explore studios to unlock AI suggestions 🚀
+            Explore studios to unlock AI suggestions.
         </p>
         <a href="{% url 'explore_studios' %}" class="btn rec-btn text-white mt-2">
             Browse Studios
         </a>
     </div>
-
     {% endif %}
-
 </div>
 
 {% endblock %}

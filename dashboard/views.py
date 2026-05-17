@@ -346,7 +346,7 @@ def studio_booking(request):
 def user_dashboard(request):
     from bookings.models import BookingRequest
     from payments.models import Payment
-    from recommendations.models import StudioRecommendation
+    from recommendations.services import get_user_recommendations
     from studios.models import Review
 
     featured_studios_qs = (
@@ -382,7 +382,7 @@ def user_dashboard(request):
 
     recent_payments = Payment.objects.filter(user=request.user).select_related('booking', 'booking__studio').order_by('-created_at')[:4]
     recent_reviews = Review.objects.filter(user=request.user).select_related('studio').order_by('-created_at')[:3]
-    recommendations = StudioRecommendation.objects.filter(user=request.user).select_related('studio').order_by('-score')[:4]
+    recommendations = get_user_recommendations(request.user, limit=4)
     notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
     recent_notifications = notifications[:4]
     unread_notifications = notifications.filter(is_read=False)
@@ -591,8 +591,8 @@ def user_bookings(request):
 @login_required
 @role_required(['USER'])
 def user_recommendations(request):
-    from recommendations.models import StudioRecommendation
-    recommendations = StudioRecommendation.objects.filter(user=request.user, studio__is_verified=True).order_by('-score')[:12]
+    from recommendations.services import get_user_recommendations
+    recommendations = get_user_recommendations(request.user, limit=12)
     return render(request, 'user/dashboard/user_recommendations.html', {'recommendations': recommendations})
 
 
