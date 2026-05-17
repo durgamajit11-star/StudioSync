@@ -22,9 +22,13 @@
         <div class="line"><span>Status</span><span class="status-chip status-{{ payment.status|lower }}">{{ payment.status }}</span></div>
         <div class="line"><span>Amount</span><strong>₹ {{ payment.amount }}</strong></div>
         <div class="line"><span>Method</span><strong>{{ payment.get_payment_method_display }}</strong></div>
+        <div class="line"><span>Paid To</span><strong>StudioSync Admin Account</strong></div>
         <div class="line"><span>Paid On</span><strong>{{ payment.completed_at|default:payment.created_at|date:"d M Y, h:i A" }}</strong></div>
         <div class="line"><span>Booking</span><strong>#{{ payment.booking.id }} - {{ payment.booking.event_type }}</strong></div>
         <div class="line"><span>Studio</span><strong>{{ payment.booking.studio.studio_name }}</strong></div>
+        <div class="line"><span>Studio Payout</span><strong>Rs. {{ payment.studio_payout_amount }} (90%)</strong></div>
+        <div class="line"><span>Platform Commission</span><strong>Rs. {{ payment.commission_amount }} ({{ payment.commission_rate }}%)</strong></div>
+        <div class="line"><span>Payout Status</span><strong>{{ payment.payout_status }}</strong></div>
     </div>
 
     <div class="receipt-card">

@@ -1140,11 +1140,12 @@ def studio_earnings(request):
     total_earnings = completed_payments.aggregate(total=Sum('studio_payout_amount'))['total'] or 0
     gross_collected = completed_payments.aggregate(total=Sum('amount'))['total'] or 0
     commission_paid = completed_payments.aggregate(total=Sum('commission_amount'))['total'] or 0
+    paid_payout_amount = completed_payments.filter(payout_status='Paid').aggregate(total=Sum('studio_payout_amount'))['total'] or 0
     total_bookings = bookings.count()
     completed_bookings = bookings.filter(status="Completed").count()
     pending_amount = completed_payments.filter(payout_status='Ready').aggregate(total=Sum('studio_payout_amount'))['total'] or 0
 
-    recent_payments = payments[:10]
+    recent_payments = payments[:25]
 
     avg_booking_value = bookings.filter(status='Confirmed').aggregate(avg=Avg('amount'))['avg'] or 0
     paid_count = payments.filter(status='Completed').count()
@@ -1192,8 +1193,10 @@ def studio_earnings(request):
         'total_bookings': total_bookings,
         'completed_bookings': completed_bookings,
         'pending_amount': pending_amount,
+        'paid_payout_amount': paid_payout_amount,
         'gross_collected': gross_collected,
         'commission_paid': commission_paid,
+        'platform_commission_rate': 10,
         'recent_payments': recent_payments,
         'avg_booking_value': avg_booking_value,
         'monthly_average': monthly_average,

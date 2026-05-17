@@ -10,7 +10,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
             <h2 class="fw-bold mb-1">Studio Payment Checkout</h2>
-            <p class="text-secondary mb-0">Select unpaid booking, choose payment method, and complete securely.</p>
+            <p class="text-secondary mb-0">Pay securely to StudioSync. After payment, admin releases 90% net payout to the studio and keeps 10% platform commission.</p>
         </div>
         <a href="{% url 'studio_booking' %}" class="btn btn-outline-light btn-sm">Create New Booking</a>
     </div>
@@ -114,6 +114,8 @@
             <div class="meta-line"><span>Amount</span><strong>&#8377; {{ selected_booking.amount }}</strong></div>
             <div class="meta-line"><span>Payment Status</span><strong>{{ selected_booking.payment_status }}</strong></div>
             <div class="meta-line"><span>Gateway</span><strong>{{ gateway.provider }}</strong></div>
+            <div class="meta-line"><span>Payee Account</span><strong>StudioSync Admin</strong></div>
+            <div class="meta-line"><span>Payout Policy</span><strong>90% studio / 10% admin</strong></div>
 
             {% if gateway.enabled and selected_payment %}
             <hr class="border-secondary">

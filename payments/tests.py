@@ -64,6 +64,7 @@ class PaymentServiceTests(TestCase):
         self.assertEqual(payment.payout_status, 'Ready')
         self.assertEqual(self.booking.payment_status, 'Paid')
         self.assertTrue(Notification.objects.filter(user=self.user, type='payment_completed').exists())
+        self.assertTrue(Notification.objects.filter(user=self.studio_user, type='studio_payment_received').exists())
 
     @override_settings(RAZORPAY_KEY_SECRET='secret')
     def test_razorpay_checkout_completion_requires_valid_signature(self):

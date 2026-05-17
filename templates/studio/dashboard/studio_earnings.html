@@ -1,250 +1,236 @@
 {% extends "studio/dashboard/studio_base.html" %}
 {% load static %}
 
-{% block title %}Earnings & Analytics{% endblock %}
+{% block title %}Earnings & Payouts{% endblock %}
 
 {% block studio_content %}
 
-<!-- ================= HEADER ================= -->
-<div class="dashboard-header mb-4">
-    <div class="row align-items-center">
-        <div class="col-md-8">
-            <h1 class="display-6 fw-bold mb-2">💰 Earnings & Analytics</h1>
-            <p class="text-muted">Track your income and financial performance</p>
+<section class="studio-payout-page">
+    <div class="payout-hero mb-4">
+        <div>
+            <span class="hero-kicker"><i class="bi bi-wallet2"></i> StudioSync Payouts</span>
+            <h1>Earnings & Transactions</h1>
+            <p>User payments are collected by StudioSync first. The platform retains 10% commission and releases 90% net payout to your studio.</p>
         </div>
-        <div class="col-md-4 text-md-end">
-            <div class="btn-group" role="group">
-                <input type="radio" class="btn-check" name="period" id="monthly" checked>
-                <label class="btn btn-outline-primary" for="monthly">Month</label>
-
-                <input type="radio" class="btn-check" name="period" id="quarterly">
-                <label class="btn btn-outline-primary" for="quarterly">Quarter</label>
-
-                <input type="radio" class="btn-check" name="period" id="yearly">
-                <label class="btn btn-outline-primary" for="yearly">Year</label>
+        <div class="payout-ratio">
+            <div>
+                <strong>90%</strong>
+                <span>Studio payout</span>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- ================= EARNINGS CARDS ================= -->
-<div class="row g-4 mb-5">
-
-    <div class="col-lg-3 col-md-6">
-        <div class="stat-card stat-card-success">
-            <div class="stat-icon">
-                <i class="bi bi-cash-coin"></i>
-            </div>
-            <div class="stat-content">
-                <span class="stat-label">Net Earnings</span>
-                <h2 class="stat-value">₹{{ total_earnings|default:0 }}</h2>
-                <small class="stat-trend">📈 +15% vs last month</small>
+            <div>
+                <strong>10%</strong>
+                <span>Admin commission</span>
             </div>
         </div>
     </div>
 
-    <div class="col-lg-3 col-md-6">
-        <div class="stat-card stat-card-primary">
-            <div class="stat-icon">
-                <i class="bi bi-hourglass-split"></i>
+    <div class="payout-flow mb-4">
+        <div class="flow-card">
+            <i class="bi bi-credit-card"></i>
+            <strong>Client pays</strong>
+            <span>Payment enters StudioSync admin account.</span>
+        </div>
+        <div class="flow-card">
+            <i class="bi bi-calculator"></i>
+            <strong>Split calculated</strong>
+            <span>10% commission and 90% studio payout are recorded.</span>
+        </div>
+        <div class="flow-card">
+            <i class="bi bi-bank"></i>
+            <strong>Payout released</strong>
+            <span>Admin marks transfer paid with reference.</span>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card payout-tile success">
+                <span class="stat-label">Net Studio Earnings</span>
+                <h2 class="stat-value">Rs. {{ total_earnings|floatformat:2 }}</h2>
+                <small>90% share from completed payments</small>
             </div>
-            <div class="stat-content">
-                <span class="stat-label">Pending Payout</span>
-                <h2 class="stat-value">₹{{ pending_amount|default:0 }}</h2>
-                <small class="stat-trend">⏳ Awaiting completion</small>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card payout-tile primary">
+                <span class="stat-label">Ready Payout</span>
+                <h2 class="stat-value">Rs. {{ pending_amount|floatformat:2 }}</h2>
+                <small>Waiting for admin transfer</small>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card payout-tile info">
+                <span class="stat-label">Paid to Studio</span>
+                <h2 class="stat-value">Rs. {{ paid_payout_amount|floatformat:2 }}</h2>
+                <small>Transfers marked paid</small>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card payout-tile warning">
+                <span class="stat-label">Admin Commission</span>
+                <h2 class="stat-value">Rs. {{ commission_paid|floatformat:2 }}</h2>
+                <small>10% retained by platform</small>
             </div>
         </div>
     </div>
 
-    <div class="col-lg-3 col-md-6">
-        <div class="stat-card stat-card-info">
-            <div class="stat-icon">
-                <i class="bi bi-calendar-check"></i>
-            </div>
-            <div class="stat-content">
-                <span class="stat-label">Completed</span>
-                <h2 class="stat-value">{{ completed_bookings }}</h2>
-                <small class="stat-trend">bookings</small>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6">
-        <div class="stat-card stat-card-warning">
-            <div class="stat-icon">
-                <i class="bi bi-receipt"></i>
-            </div>
-            <div class="stat-content">
-                <span class="stat-label">Total Bookings</span>
-                <h2 class="stat-value">{{ total_bookings }}</h2>
-                <small class="stat-trend">all time</small>
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="dashboard-card payout-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-graph-up-arrow"></i> Net Payout Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="revenueChart" height="140"></canvas>
+                </div>
             </div>
         </div>
-    </div>
-
-</div>
-
-<!-- ================= CHARTS SECTION ================= -->
-<div class="row g-4 mb-5">
-
-    <!-- Revenue Chart -->
-    <div class="col-lg-8">
-        <div class="dashboard-card">
-            <div class="card-header">
-                <h5 class="mb-0">📈 Revenue Trend</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="revenueChart" height="140"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Payment Status -->
-    <div class="col-lg-4">
-        <div class="dashboard-card">
-            <div class="card-header">
-                <h5 class="mb-0">💳 Payment Status</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="paymentStatusChart" height="220"></canvas>
-            </div>
-        </div>
-    </div>
-
-</div>
-
-<!-- ================= AVERAGE METRICS ================= -->
-<div class="row g-4 mb-5">
-
-    <div class="col-lg-6">
-        <div class="dashboard-card">
-            <div class="card-header">
-                <h5 class="mb-0">📊 Financial Metrics</h5>
-            </div>
-            <div class="card-body">
-                <div class="metrics-list">
-                    <div class="metric-row">
-                        <span class="metric-label">Gross Collected</span>
-                        <span class="metric-value">Rs. {{ gross_collected|floatformat:2 }}</span>
-                    </div>
-                    <div class="metric-row">
-                        <span class="metric-label">Platform Commission</span>
-                        <span class="metric-value">Rs. {{ commission_paid|floatformat:2 }}</span>
-                    </div>
-                    <div class="metric-row">
-                        <span class="metric-label">Average Booking Value</span>
-                        <span class="metric-value">₹{{ avg_booking_value|floatformat:2 }}</span>
-                    </div>
-                    <div class="metric-row">
-                        <span class="metric-label">Monthly Average</span>
-                        <span class="metric-value">₹{{ monthly_average|floatformat:2 }}</span>
-                    </div>
-                    <div class="metric-row">
-                        <span class="metric-label">Payment Completion Rate</span>
-                        <span class="metric-value">{{ payment_completion_rate }}%</span>
-                    </div>
-                    <div class="metric-row">
-                        <span class="metric-label">Average Days to Payment</span>
-                        <span class="metric-value">{{ avg_days_to_payment }} days</span>
-                    </div>
+        <div class="col-lg-4">
+            <div class="dashboard-card payout-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-pie-chart"></i> Payment Status</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="paymentStatusChart" height="220"></canvas>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="col-lg-6">
-        <div class="dashboard-card">
-            <div class="card-header">
-                <h5 class="mb-0">🎯 Top Services</h5>
-            </div>
-            <div class="card-body">
-                <div class="service-list">
-                    {% for service in top_services %}
-                    <div class="service-item">
-                        <div class="service-rank">{{ forloop.counter }}</div>
-                        <div class="service-details">
-                            <span class="service-name">{{ service.booking__service__service_name|default:'General Session' }}</span>
-                            <small class="text-muted">{{ service.bookings_count }} bookings • ₹{{ service.revenue|floatformat:2 }}</small>
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="dashboard-card payout-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-receipt-cutoff"></i> Financial Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="metrics-list">
+                        <div class="metric-row">
+                            <span class="metric-label">Gross Collected by Admin</span>
+                            <span class="metric-value">Rs. {{ gross_collected|floatformat:2 }}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Platform Commission</span>
+                            <span class="metric-value">Rs. {{ commission_paid|floatformat:2 }}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Net Payable to Studio</span>
+                            <span class="metric-value">Rs. {{ total_earnings|floatformat:2 }}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Average Booking Value</span>
+                            <span class="metric-value">Rs. {{ avg_booking_value|floatformat:2 }}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Payment Completion Rate</span>
+                            <span class="metric-value">{{ payment_completion_rate }}%</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Average Days to Payment</span>
+                            <span class="metric-value">{{ avg_days_to_payment }} days</span>
                         </div>
                     </div>
-                    {% empty %}
-                    <div class="text-muted small">No confirmed service revenue yet.</div>
-                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="dashboard-card payout-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-stars"></i> Top Services</h5>
+                </div>
+                <div class="card-body">
+                    <div class="service-list">
+                        {% for service in top_services %}
+                        <div class="service-item">
+                            <div class="service-rank">{{ forloop.counter }}</div>
+                            <div class="service-details">
+                                <span class="service-name">{{ service.booking__service__service_name|default:'General Session' }}</span>
+                                <small class="text-muted">{{ service.bookings_count }} bookings | Rs. {{ service.revenue|floatformat:2 }} net</small>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-muted small">No confirmed service revenue yet.</div>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-</div>
-
-<!-- ================= RECENT PAYMENTS ================= -->
-<div class="dashboard-card">
-    <div class="card-header">
-        <h5 class="mb-0">💵 Recent Transactions</h5>
-        <input type="text" class="form-control form-control-sm" placeholder="Filter transactions..." id="transactionSearch">
-    </div>
-    <div class="card-body">
-        {% if recent_payments %}
-        <div class="table-responsive">
-            <table class="table table-hover align-middle transactions-table">
-                <thead>
-                    <tr>
-                        <th>Client</th>
-                        <th>Booking Details</th>
-                        <th>Net Amount</th>
-                        <th>Commission</th>
-                        <th>Status</th>
-                        <th>Payout</th>
-                        <th>Date</th>
-                        <th style="width: 100px;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for payment in recent_payments %}
-                    <tr>
-                        <td>
-                            <strong>{{ payment.user.get_full_name|default:payment.user.username }}</strong>
-                            <small class="d-block text-muted">{{ payment.user.email }}</small>
-                        </td>
-                        <td>
-                            <span>{{ payment.booking.event_type }}</span>
-                            <small class="d-block text-muted">{{ payment.booking.date|date:"M d, Y" }}</small>
-                        </td>
-                        <td class="fw-bold">₹{{ payment.studio_payout_amount }}</td>
-                        <td>₹{{ payment.commission_amount }}</td>
-                        <td>
-                            <span class="badge {% if payment.status == 'Completed' %}bg-success{% elif payment.status == 'Pending' %}bg-warning{% else %}bg-danger{% endif %}">
-                                {{ payment.status }}
-                            </span>
-                        </td>
-                        <td>
-                            <span class="badge {% if payment.payout_status == 'Paid' %}bg-success{% elif payment.payout_status == 'Ready' %}bg-primary{% elif payment.payout_status == 'Hold' %}bg-warning{% else %}bg-secondary{% endif %}">
-                                {{ payment.payout_status }}
-                            </span>
-                        </td>
-                        <td>{{ payment.created_at|date:"M d, Y" }}</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#paymentDetail{{ payment.id }}">
-                                Details
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <div class="dashboard-card payout-card">
+        <div class="card-header payout-ledger-header">
+            <div>
+                <h5 class="mb-0"><i class="bi bi-list-check"></i> Transaction Ledger</h5>
+                <small>Every payment shows gross amount, admin commission, studio net payout, and payout status.</small>
+            </div>
+            <input type="text" class="form-control form-control-sm" placeholder="Filter transactions..." id="transactionSearch">
         </div>
-        {% else %}
-        <div class="empty-state text-center py-5">
-            <i class="bi bi-inbox" style="font-size: 3rem; color: #6366f1;"></i>
-            <h5 class="mt-3">No payments yet</h5>
-            <p class="text-muted">Payments will appear here once clients complete bookings</p>
+        <div class="card-body">
+            {% if recent_payments %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle transactions-table studio-ledger-table">
+                    <thead>
+                        <tr>
+                            <th>Client</th>
+                            <th>Booking</th>
+                            <th>Gross Paid</th>
+                            <th>Admin 10%</th>
+                            <th>Your 90%</th>
+                            <th>Payment</th>
+                            <th>Payout</th>
+                            <th>Reference</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in recent_payments %}
+                        <tr>
+                            <td>
+                                <strong>{{ payment.user.get_full_name|default:payment.user.username }}</strong>
+                                <small class="d-block text-muted">{{ payment.user.email|default:'No email' }}</small>
+                            </td>
+                            <td>
+                                <span>{{ payment.booking.event_type }}</span>
+                                <small class="d-block text-muted">#{{ payment.booking_id }} | {{ payment.booking.date|date:"M d, Y" }}</small>
+                            </td>
+                            <td class="ledger-money">Rs. {{ payment.amount }}</td>
+                            <td class="ledger-money muted">Rs. {{ payment.commission_amount }}</td>
+                            <td class="ledger-money success">Rs. {{ payment.studio_payout_amount }}</td>
+                            <td>
+                                <span class="badge {% if payment.status == 'Completed' %}bg-success{% elif payment.status == 'Pending' or payment.status == 'Processing' %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ payment.status }}
+                                </span>
+                                <small class="d-block text-muted mt-1">{{ payment.transaction_id|default:'Pending ID' }}</small>
+                            </td>
+                            <td>
+                                <span class="badge {% if payment.payout_status == 'Paid' %}bg-success{% elif payment.payout_status == 'Ready' %}bg-primary{% elif payment.payout_status == 'Hold' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    {{ payment.payout_status }}
+                                </span>
+                                {% if payment.payout_processed_at %}
+                                <small class="d-block text-muted mt-1">{{ payment.payout_processed_at|date:"M d, Y" }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ payment.payout_reference|default:'Awaiting admin transfer' }}</strong>
+                                {% if payment.payout_notes %}
+                                <small class="d-block text-muted">{{ payment.payout_notes }}</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state text-center py-5">
+                <i class="bi bi-inbox" style="font-size: 3rem; color: #d9ab45;"></i>
+                <h5 class="mt-3">No transactions yet</h5>
+                <p class="text-muted">Payments will appear here once clients complete bookings.</p>
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
-</div>
+</section>
 
-<!-- Chart Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {{ revenue_labels|json_script:"studioEarningsLabels" }}
 {{ revenue_data|json_script:"studioEarningsData" }}
 {{ status_counts|json_script:"studioPaymentStatusCounts" }}
@@ -253,22 +239,21 @@
     const earningsValues = JSON.parse(document.getElementById('studioEarningsData').textContent);
     const paymentStatusCounts = JSON.parse(document.getElementById('studioPaymentStatusCounts').textContent);
 
-    // Revenue Chart
     const revenueCtx = document.getElementById('revenueChart').getContext('2d');
     new Chart(revenueCtx, {
         type: 'line',
         data: {
             labels: earningsLabels.length ? earningsLabels : ['No Data'],
             datasets: [{
-                label: 'Revenue',
+                label: 'Net Payout',
                 data: earningsValues.length ? earningsValues : [0],
-                borderColor: '#10b981',
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                borderColor: '#d9ab45',
+                backgroundColor: 'rgba(217, 171, 69, 0.13)',
                 borderWidth: 3,
                 fill: true,
                 tension: 0.4,
-                pointBackgroundColor: '#10b981',
-                pointBorderColor: '#fff',
+                pointBackgroundColor: '#f0c45f',
+                pointBorderColor: '#071b15',
                 pointBorderWidth: 2,
                 pointRadius: 5
             }]
@@ -276,9 +261,7 @@
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            plugins: {
-                legend: { display: false }
-            },
+            plugins: { legend: { display: false } },
             scales: {
                 y: {
                     grid: { color: 'rgba(255,255,255,0.05)' },
@@ -292,7 +275,6 @@
         }
     });
 
-    // Payment Status Chart
     const paymentCtx = document.getElementById('paymentStatusChart').getContext('2d');
     new Chart(paymentCtx, {
         type: 'doughnut',
@@ -309,7 +291,7 @@
             responsive: true,
             maintainAspectRatio: true,
             plugins: {
-                legend: { 
+                legend: {
                     position: 'bottom',
                     labels: { color: '#e2e8f0' }
                 }
@@ -317,14 +299,12 @@
         }
     });
 
-    // Transaction search
     const transactionSearch = document.getElementById('transactionSearch');
     if (transactionSearch) {
-        transactionSearch.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            document.querySelectorAll('.transactions-table tbody tr').forEach(row => {
-                const content = row.textContent.toLowerCase();
-                row.style.display = content.includes(searchTerm) ? '' : 'none';
+        transactionSearch.addEventListener('input', (event) => {
+            const searchTerm = event.target.value.toLowerCase();
+            document.querySelectorAll('.transactions-table tbody tr').forEach((row) => {
+                row.style.display = row.textContent.toLowerCase().includes(searchTerm) ? '' : 'none';
             });
         });
     }

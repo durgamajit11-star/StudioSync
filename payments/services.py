@@ -211,8 +211,20 @@ def mark_payment_completed(
         locked_booking.save(update_fields=['payment_status', 'updated_at'])
         create_notification(
             locked_booking.user,
-            f"Payment received for booking #{locked_booking.id} with {locked_booking.studio.studio_name}.",
+            (
+                f"Payment received by StudioSync for booking #{locked_booking.id} "
+                f"with {locked_booking.studio.studio_name}. Studio payout is now queued."
+            ),
             'payment_completed',
+        )
+        create_notification(
+            locked_booking.studio.user,
+            (
+                f"StudioSync received Rs. {locked_payment.amount} for booking #{locked_booking.id}. "
+                f"Your net payout is Rs. {locked_payment.studio_payout_amount} after "
+                f"{locked_payment.commission_rate}% platform commission."
+            ),
+            'studio_payment_received',
         )
         return locked_payment
 

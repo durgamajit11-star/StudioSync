@@ -624,6 +624,7 @@ def admin_payments(request):
     query = request.GET.get('q', '').strip()
     status = request.GET.get('status', '').strip()
     method = request.GET.get('method', '').strip()
+    payout = request.GET.get('payout', '').strip()
 
     payments = Payment.objects.select_related('user', 'booking', 'booking__studio').order_by('-created_at')
     if query:
@@ -638,6 +639,8 @@ def admin_payments(request):
         payments = payments.filter(status=status)
     if method:
         payments = payments.filter(payment_method=method)
+    if payout:
+        payments = payments.filter(payout_status=payout)
 
     stats = {
         'completed_count': payments.filter(status='Completed').count(),
@@ -649,8 +652,10 @@ def admin_payments(request):
         'commission_amount': payments.filter(status='Completed').aggregate(total=Sum('commission_amount'))['total'] or 0,
         'studio_payout_amount': payments.filter(status='Completed').aggregate(total=Sum('studio_payout_amount'))['total'] or 0,
         'payout_ready_amount': payments.filter(status='Completed', payout_status='Ready').aggregate(total=Sum('studio_payout_amount'))['total'] or 0,
+        'payout_paid_amount': payments.filter(status='Completed', payout_status='Paid').aggregate(total=Sum('studio_payout_amount'))['total'] or 0,
     }
     stats['completion_rate'] = int((stats['completed_count'] / stats['total_count']) * 100) if stats['total_count'] else 0
+    stats['admin_retained_rate'] = '10'
 
     return render(
         request,
@@ -660,6 +665,7 @@ def admin_payments(request):
             'query': query,
             'status': status,
             'method': method,
+            'payout': payout,
             'stats': stats,
         },
     )
@@ -696,6 +702,14 @@ def mark_studio_payout_paid(request, payment_id):
         'payment_status',
         'updated_at',
     ])
+    create_notification(
+        payment.booking.studio.user,
+        (
+            f"StudioSync payout of Rs. {payment.studio_payout_amount} for booking #{payment.booking_id} "
+            f"has been marked paid. Reference: {payment.payout_reference or 'Not provided'}."
+        ),
+        'studio_payout_paid',
+    )
     messages.success(
         request,
         f'Studio payout of Rs. {payment.studio_payout_amount} marked paid for booking #{payment.booking_id}.',

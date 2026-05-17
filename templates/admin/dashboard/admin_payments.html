@@ -1,74 +1,107 @@
 {% extends "admin/dashboard/admin_base.html" %}
-{% block page_title %}Payments Control Center{% endblock %}
-{% block page_description %}Audit transaction flow, commission, and studio payout status.{% endblock %}
+{% block page_title %}Payment & Payout Command Center{% endblock %}
+{% block page_description %}Track user payments collected by StudioSync, retain 10% commission, and release 90% studio payouts.{% endblock %}
 
 {% block page_actions %}
-<span class="metric-tag">Total: {{ stats.total_count }}</span>
-<span class="metric-tag">Success: {{ stats.completion_rate }}%</span>
-<span class="metric-tag">Commission: Rs. {{ stats.commission_amount }}</span>
+<span class="metric-tag">Collected: Rs. {{ stats.total_amount }}</span>
+<span class="metric-tag">Admin Commission: Rs. {{ stats.commission_amount }}</span>
+<span class="metric-tag">Ready Payout: Rs. {{ stats.payout_ready_amount }}</span>
 {% endblock %}
 
 {% block admin_content %}
 
-<div class="row g-4 mb-4">
-    <div class="col-md-3">
-        <div class="stat-card">
-            <h6 class="text-muted mb-1">Completed Payments</h6>
-            <h3 class="fw-bold">{{ stats.completed_count }}</h3>
+<div class="payment-flow mb-4">
+    <div class="flow-step">
+        <span class="flow-icon"><i class="bi bi-person-check"></i></span>
+        <div>
+            <strong>User pays StudioSync</strong>
+            <small>Checkout money lands in the admin/platform account.</small>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <h6 class="text-muted mb-1">Pending Payments</h6>
-            <h3 class="fw-bold">{{ stats.pending_count }}</h3>
+    <i class="bi bi-arrow-right flow-arrow"></i>
+    <div class="flow-step">
+        <span class="flow-icon"><i class="bi bi-percent"></i></span>
+        <div>
+            <strong>10% retained</strong>
+            <small>Platform commission stays with admin.</small>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <h6 class="text-muted mb-1">Processing/Failed</h6>
-            <h3 class="fw-bold">{{ stats.processing_count }}/{{ stats.failed_count }}</h3>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <h6 class="text-muted mb-1">Collected Revenue</h6>
-            <h3 class="fw-bold">Rs. {{ stats.total_amount }}</h3>
+    <i class="bi bi-arrow-right flow-arrow"></i>
+    <div class="flow-step">
+        <span class="flow-icon"><i class="bi bi-bank"></i></span>
+        <div>
+            <strong>90% sent to studio</strong>
+            <small>Mark payout paid after transfer reference is recorded.</small>
         </div>
     </div>
 </div>
 
 <div class="row g-4 mb-4">
-    <div class="col-md-4">
-        <div class="stat-card">
-            <h6 class="text-muted mb-1">Platform Commission</h6>
-            <h3 class="fw-bold">Rs. {{ stats.commission_amount }}</h3>
-            <small class="text-muted">10% on completed bookings</small>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card payout-stat">
+            <span class="stat-kicker">Platform balance</span>
+            <h3>Rs. {{ stats.total_amount }}</h3>
+            <small>Gross completed payments held by admin</small>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="stat-card">
-            <h6 class="text-muted mb-1">Studio Earnings</h6>
-            <h3 class="fw-bold">Rs. {{ stats.studio_payout_amount }}</h3>
-            <small class="text-muted">Net amount owed to studios</small>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card payout-stat">
+            <span class="stat-kicker">Admin commission</span>
+            <h3>Rs. {{ stats.commission_amount }}</h3>
+            <small>{{ stats.admin_retained_rate }}% retained from completed payments</small>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="stat-card">
-            <h6 class="text-muted mb-1">Ready for Payout</h6>
-            <h3 class="fw-bold">Rs. {{ stats.payout_ready_amount }}</h3>
-            <small class="text-muted">Completed payments not marked paid</small>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card payout-stat">
+            <span class="stat-kicker">Studio payout owed</span>
+            <h3>Rs. {{ stats.studio_payout_amount }}</h3>
+            <small>90% net studio earnings</small>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card payout-stat accent">
+            <span class="stat-kicker">Ready to release</span>
+            <h3>Rs. {{ stats.payout_ready_amount }}</h3>
+            <small>Not yet marked paid to studios</small>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card mini-stat">
+            <span>Completed</span>
+            <strong>{{ stats.completed_count }}</strong>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card mini-stat">
+            <span>Pending</span>
+            <strong>{{ stats.pending_count }}</strong>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card mini-stat">
+            <span>Processing / Failed</span>
+            <strong>{{ stats.processing_count }} / {{ stats.failed_count }}</strong>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card mini-stat">
+            <span>Already paid out</span>
+            <strong>Rs. {{ stats.payout_paid_amount }}</strong>
         </div>
     </div>
 </div>
 
 <div class="admin-panel p-3 mb-4">
     <form method="GET" class="row g-2 align-items-end">
-        <div class="col-md-5">
+        <div class="col-lg-4">
             <label class="form-label small text-muted">Search</label>
             <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Transaction, user, studio">
         </div>
-        <div class="col-md-3">
-            <label class="form-label small text-muted">Status</label>
+        <div class="col-lg-2 col-md-4">
+            <label class="form-label small text-muted">Payment</label>
             <select name="status" class="form-select">
                 <option value="">All</option>
                 <option value="Completed" {% if status == 'Completed' %}selected{% endif %}>Completed</option>
@@ -78,7 +111,18 @@
                 <option value="Refunded" {% if status == 'Refunded' %}selected{% endif %}>Refunded</option>
             </select>
         </div>
-        <div class="col-md-2">
+        <div class="col-lg-2 col-md-4">
+            <label class="form-label small text-muted">Payout</label>
+            <select name="payout" class="form-select">
+                <option value="">All</option>
+                <option value="Ready" {% if payout == 'Ready' %}selected{% endif %}>Ready</option>
+                <option value="Paid" {% if payout == 'Paid' %}selected{% endif %}>Paid</option>
+                <option value="Pending" {% if payout == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="Hold" {% if payout == 'Hold' %}selected{% endif %}>Hold</option>
+                <option value="Cancelled" {% if payout == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+            </select>
+        </div>
+        <div class="col-lg-2 col-md-4">
             <label class="form-label small text-muted">Method</label>
             <select name="method" class="form-select">
                 <option value="">All</option>
@@ -88,7 +132,7 @@
                 <option value="UPI" {% if method == 'UPI' %}selected{% endif %}>UPI</option>
             </select>
         </div>
-        <div class="col-md-2 d-grid">
+        <div class="col-lg-2 d-grid">
             <button class="btn btn-primary" type="submit"><i class="bi bi-funnel me-1"></i>Filter</button>
         </div>
     </form>
@@ -96,64 +140,76 @@
 
 <div class="admin-panel p-0 overflow-hidden">
     <div class="table-responsive">
-        <table class="table table-hover align-middle">
+        <table class="table table-hover align-middle payout-table">
             <thead>
                 <tr>
-                    <th>Transaction ID</th>
-                    <th>User</th>
+                    <th>Transaction</th>
+                    <th>Customer</th>
                     <th>Studio</th>
-                    <th>Method</th>
-                    <th>Amount</th>
-                    <th>Commission</th>
-                    <th>Studio Payout</th>
+                    <th>Gateway</th>
+                    <th>Gross</th>
+                    <th>Admin 10%</th>
+                    <th>Studio 90%</th>
                     <th>Status</th>
-                    <th>Payout</th>
-                    <th>Date</th>
-                    <th>Action</th>
+                    <th>Payout Action</th>
                 </tr>
             </thead>
             <tbody>
                 {% for payment in payments %}
                 <tr>
-                    <td>{{ payment.transaction_id|default:'Pending ID' }}</td>
                     <td>
-                        <strong>{{ payment.user.username }}</strong>
-                        <div class="small text-muted">{{ payment.user.email }}</div>
+                        <strong>{{ payment.transaction_id|default:'Pending ID' }}</strong>
+                        <small class="d-block text-muted">#{{ payment.id }} | {{ payment.created_at|date:"M d, Y H:i" }}</small>
                     </td>
-                    <td>{{ payment.booking.studio.studio_name|default:'-' }}</td>
-                    <td>{{ payment.payment_method }}</td>
-                    <td>Rs. {{ payment.amount }}</td>
-                    <td>Rs. {{ payment.commission_amount }}</td>
-                    <td>Rs. {{ payment.studio_payout_amount }}</td>
+                    <td>
+                        <strong>{{ payment.user.get_full_name|default:payment.user.username }}</strong>
+                        <small class="d-block text-muted">{{ payment.user.email|default:'No email' }}</small>
+                    </td>
+                    <td>
+                        <strong>{{ payment.booking.studio.studio_name|default:'-' }}</strong>
+                        <small class="d-block text-muted">Booking #{{ payment.booking_id }} | {{ payment.booking.event_type }}</small>
+                    </td>
+                    <td>
+                        <span class="badge text-bg-dark">{{ payment.gateway }}</span>
+                        <small class="d-block text-muted mt-1">{{ payment.get_payment_method_display }}</small>
+                    </td>
+                    <td class="money-cell">Rs. {{ payment.amount }}</td>
+                    <td>
+                        <span class="money-cell">Rs. {{ payment.commission_amount }}</span>
+                        <small class="d-block text-muted">{{ payment.commission_rate }}%</small>
+                    </td>
+                    <td class="money-cell success">Rs. {{ payment.studio_payout_amount }}</td>
                     <td>
                         <span class="badge {% if payment.status == 'Completed' %}text-bg-success{% elif payment.status == 'Pending' or payment.status == 'Processing' %}text-bg-warning{% elif payment.status == 'Failed' %}text-bg-danger{% else %}text-bg-secondary{% endif %}">
                             {{ payment.status }}
                         </span>
-                    </td>
-                    <td>
-                        <span class="badge {% if payment.payout_status == 'Paid' %}text-bg-success{% elif payment.payout_status == 'Ready' %}text-bg-primary{% elif payment.payout_status == 'Hold' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">
-                            {{ payment.payout_status }}
+                        <span class="badge d-block mt-2 {% if payment.payout_status == 'Paid' %}text-bg-success{% elif payment.payout_status == 'Ready' %}text-bg-primary{% elif payment.payout_status == 'Hold' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">
+                            Payout: {{ payment.payout_status }}
                         </span>
                         {% if payment.payout_reference %}
-                        <div class="small text-muted">{{ payment.payout_reference }}</div>
+                        <small class="d-block text-muted mt-1">Ref: {{ payment.payout_reference }}</small>
                         {% endif %}
                     </td>
-                    <td>{{ payment.created_at|date:"M d, Y H:i" }}</td>
                     <td>
                         {% if payment.status == 'Completed' and payment.payout_status != 'Paid' %}
-                        <form method="POST" action="{% url 'mark_studio_payout_paid' payment.id %}" class="d-flex gap-1">
+                        <form method="POST" action="{% url 'mark_studio_payout_paid' payment.id %}" class="payout-action">
                             {% csrf_token %}
-                            <input type="text" name="payout_reference" class="form-control form-control-sm" placeholder="Payout ref">
-                            <button type="submit" class="btn btn-sm btn-outline-success">Paid</button>
+                            <input type="text" name="payout_reference" class="form-control form-control-sm" placeholder="Transfer ref / UTR">
+                            <input type="text" name="payout_notes" class="form-control form-control-sm" placeholder="Notes">
+                            <button type="submit" class="btn btn-sm btn-success">
+                                <i class="bi bi-bank me-1"></i>Mark 90% Paid
+                            </button>
                         </form>
+                        {% elif payment.payout_status == 'Paid' %}
+                        <span class="paid-pill"><i class="bi bi-check2-circle"></i> Paid to studio</span>
                         {% else %}
-                        <span class="text-muted small">-</span>
+                        <span class="text-muted small">Awaiting completed payment</span>
                         {% endif %}
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="11" class="text-center py-5 text-muted">No payments found for selected filters.</td>
+                    <td colspan="9" class="text-center py-5 text-muted">No payments found for selected filters.</td>
                 </tr>
                 {% endfor %}
             </tbody>

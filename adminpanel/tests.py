@@ -1,9 +1,13 @@
 from django.test import TestCase
 from django.urls import reverse
+from decimal import Decimal
 
 from accounts.models import CustomUser
+from bookings.models import BookingRequest
 from chatbot.models import ChatMessage
 from notifications.models import Notification
+from payments.models import Payment
+from studios.models import Studio
 
 
 class AdminChatbotAnalyticsTests(TestCase):
@@ -87,3 +91,44 @@ class AdminChatbotAnalyticsTests(TestCase):
 		self.assertRedirects(response, reverse('manage_users'))
 		notification = Notification.objects.get(user=self.user, type='admin_notice')
 		self.assertIn('Your booking policy has been updated.', notification.message)
+
+	def test_admin_marks_studio_payout_paid_and_notifies_owner(self):
+		studio_owner = CustomUser.objects.create_user(username='studio_owner', password=self.password, role='STUDIO')
+		studio = Studio.objects.create(
+			user=studio_owner,
+			studio_name='Payout Studio',
+			location='Nagpur',
+			price_per_hour=Decimal('1500.00'),
+		)
+		booking = BookingRequest.objects.create(
+			studio=studio,
+			user=self.user,
+			event_type='Portrait',
+			date='2026-05-10',
+			amount=Decimal('5000.00'),
+			status='Confirmed',
+			payment_status='Paid',
+		)
+		payment = Payment.objects.create(
+			booking=booking,
+			user=self.user,
+			amount=Decimal('5000.00'),
+			payment_method='UPI',
+			status='Completed',
+			payout_status='Ready',
+			transaction_id='TXN-PAYOUT-1',
+		)
+
+		self.client.force_login(self.admin)
+		response = self.client.post(
+			reverse('mark_studio_payout_paid', args=[payment.id]),
+			{'payout_reference': 'BANK-REF-90', 'payout_notes': 'Settled to owner account'},
+		)
+
+		self.assertRedirects(response, reverse('admin_payments'))
+		payment.refresh_from_db()
+		self.assertEqual(payment.payout_status, 'Paid')
+		self.assertEqual(payment.payout_reference, 'BANK-REF-90')
+		self.assertEqual(payment.studio_payout_amount, Decimal('4500.00'))
+		self.assertEqual(payment.commission_amount, Decimal('500.00'))
+		self.assertTrue(Notification.objects.filter(user=studio_owner, type='studio_payout_paid').exists())
