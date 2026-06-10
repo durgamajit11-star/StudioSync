@@ -18,6 +18,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
         fields = ['id', 'user', 'user_name', 'rating', 'comment', 'created_at']
+        read_only_fields = ['user', 'created_at']
 
 
 class StudioListSerializer(serializers.ModelSerializer):
@@ -63,7 +64,8 @@ class BookingNoteSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = BookingNote
-        fields = ['id', 'user', 'user_name', 'message', 'created_at']
+        fields = ['id', 'booking', 'user', 'user_name', 'message', 'created_at']
+        read_only_fields = ['user', 'created_at']
 
 
 class BookingRequestSerializer(serializers.ModelSerializer):
@@ -76,6 +78,9 @@ class BookingRequestSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'user_name', 'studio', 'studio_name', 'event_type',
                   'date', 'time', 'start_time', 'end_time', 'time_slot', 'duration_hours', 'location', 'special_requirements',
                   'amount', 'deposit_amount', 'status', 'payment_status', 'notes', 'created_at']
+        read_only_fields = [
+            'user', 'amount', 'deposit_amount', 'status', 'payment_status', 'created_at',
+        ]
 
 
 # ==================== PAYMENT SERIALIZERS ====================

@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.db import models
 from studios.models import Studio, Portfolio, Review
 from bookings.models import BookingRequest, BookingNote
 from payments.models import Payment
@@ -14,7 +15,7 @@ from .serializers import (
 
 # ==================== STUDIO VIEWSETS ====================
 
-class StudioViewSet(viewsets.ModelViewSet):
+class StudioViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Studio.objects.all()
     permission_classes = [AllowAny]
 
@@ -54,7 +55,7 @@ class StudioViewSet(viewsets.ModelViewSet):
 
 
 class PortfolioViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Portfolio.objects.all()
+    queryset = Portfolio.objects.filter(studio__is_verified=True)
     serializer_class = PortfolioSerializer
     permission_classes = [AllowAny]
 
@@ -64,9 +65,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        studio_id = self.request.query_params.get('studio_id')
-        if studio_id:
-            return Review.objects.filter(studio_id=studio_id)
         return Review.objects.filter(user=self.request.user)
     
     def perform_create(self, serializer):
@@ -75,7 +73,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
 # ==================== BOOKING VIEWSETS ====================
 
-class BookingRequestViewSet(viewsets.ModelViewSet):
+class BookingRequestViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = BookingRequestSerializer
     permission_classes = [IsAuthenticated]
     
@@ -113,11 +111,16 @@ class BookingNoteViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        booking_id = self.request.query_params.get('booking_id')
-        return BookingNote.objects.filter(booking_id=booking_id)
+        user = self.request.user
+        return BookingNote.objects.filter(
+            models.Q(booking__user=user) | models.Q(booking__studio__user=user)
+        ).distinct()
     
     def perform_create(self, serializer):
-        booking_id = self.request.data.get('booking')
+        booking = serializer.validated_data['booking']
+        if booking.user != self.request.user and booking.studio.user != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('You do not have access to this booking.')
         serializer.save(user=self.request.user)
 
 

@@ -103,9 +103,10 @@
             </a>
             {% endif %}
             {% if booking.status == 'Pending' %}
-            <a href="{% url 'bookings:cancel_booking' booking.id %}" class="btn btn-outline-danger btn-sm" onclick="return confirm('Cancel this booking?');">
-                Cancel
-            </a>
+            <form method="post" action="{% url 'bookings:cancel_booking' booking.id %}" class="d-inline" onsubmit="return confirm('Cancel this booking?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger btn-sm">Cancel</button>
+            </form>
             {% endif %}
         </div>
     </article>

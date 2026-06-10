@@ -25,6 +25,8 @@ def payment_gateway_context():
     return {
         'mode': settings.PAYMENT_GATEWAY_MODE,
         'enabled': settings.PAYMENT_GATEWAY_ENABLED,
+        'demo_enabled': settings.DEMO_PAYMENTS_ENABLED,
+        'checkout_available': settings.PAYMENT_GATEWAY_ENABLED or settings.DEMO_PAYMENTS_ENABLED,
         'provider': 'Razorpay' if settings.PAYMENT_GATEWAY_ENABLED else 'Demo',
         'razorpay_key_id': settings.RAZORPAY_KEY_ID if settings.PAYMENT_GATEWAY_ENABLED else '',
     }
@@ -120,6 +122,10 @@ def create_razorpay_order(payment):
 
 
 def prepare_checkout_payment(booking, payment_method='UPI'):
+    if not settings.PAYMENT_GATEWAY_ENABLED and not settings.DEMO_PAYMENTS_ENABLED:
+        raise PaymentGatewayError(
+            'Secure checkout is temporarily unavailable. Please contact support; no payment has been taken.'
+        )
     payment, _ = get_or_create_pending_payment(booking, payment_method)
     if settings.PAYMENT_GATEWAY_ENABLED:
         payment = create_razorpay_order(payment)
@@ -127,6 +133,8 @@ def prepare_checkout_payment(booking, payment_method='UPI'):
 
 
 def complete_demo_payment(payment, upi_reference='', payer_upi_id=''):
+    if not settings.DEMO_PAYMENTS_ENABLED:
+        raise PaymentGatewayError('Manual payment confirmation is disabled.')
     transaction_id = f"UPI-{upi_reference}-{payment.id:04d}" if upi_reference else f"TXN{payment.id:06d}"
     raw_payload = {
         'upi_reference': upi_reference,
@@ -158,17 +166,22 @@ def verify_webhook_signature(raw_body, signature):
 
 
 def complete_razorpay_checkout(payment, razorpay_order_id, razorpay_payment_id, razorpay_signature):
+    if not settings.PAYMENT_GATEWAY_ENABLED:
+        raise PaymentGatewayError('Razorpay checkout is not enabled.')
+
+    if payment.status == 'Completed':
+        if payment.gateway_order_id == razorpay_order_id and payment.gateway_payment_id == razorpay_payment_id:
+            return payment
+        raise PaymentGatewayError('This booking already has a completed payment.')
+
     if payment.gateway_order_id and payment.gateway_order_id != razorpay_order_id:
-        payment.status = 'Failed'
-        payment.failure_reason = 'Razorpay order mismatch.'
-        payment.save(update_fields=['status', 'payment_status', 'failure_reason', 'updated_at'])
         raise PaymentGatewayError('Payment order mismatch. Please contact support if money was debited.')
 
     if not verify_razorpay_signature(razorpay_order_id, razorpay_payment_id, razorpay_signature):
-        payment.status = 'Failed'
-        payment.failure_reason = 'Razorpay checkout signature verification failed.'
-        payment.save(update_fields=['status', 'payment_status', 'failure_reason', 'updated_at'])
         raise PaymentGatewayError('Payment verification failed. Please contact support if money was debited.')
+
+    gateway_payment = fetch_razorpay_payment(razorpay_payment_id)
+    validate_gateway_payment(payment, gateway_payment, expected_order_id=razorpay_order_id)
 
     return mark_payment_completed(
         payment,
@@ -176,9 +189,38 @@ def complete_razorpay_checkout(payment, razorpay_order_id, razorpay_payment_id, 
         gateway_payment_id=razorpay_payment_id,
         gateway_order_id=razorpay_order_id,
         gateway_signature=razorpay_signature,
-        gateway_status='paid',
-        raw_payload={'source': 'razorpay_checkout'},
+        gateway_status=gateway_payment.get('status') or 'captured',
+        raw_payload=gateway_payment,
     )
+
+
+def fetch_razorpay_payment(razorpay_payment_id):
+    try:
+        response = requests.get(
+            f"{RAZORPAY_API_BASE}/payments/{razorpay_payment_id}",
+            auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET),
+            timeout=20,
+        )
+        response.raise_for_status()
+        return response.json()
+    except (requests.RequestException, ValueError) as exc:
+        raise PaymentGatewayError(
+            'We could not confirm the payment with Razorpay yet. Please retry shortly; do not pay again.'
+        ) from exc
+
+
+def validate_gateway_payment(payment, entity, expected_order_id=None):
+    order_id = entity.get('order_id')
+    if expected_order_id and order_id != expected_order_id:
+        raise PaymentGatewayError('Gateway payment order does not match this booking.')
+    if entity.get('currency') != 'INR':
+        raise PaymentGatewayError('Gateway payment currency does not match this booking.')
+    if entity.get('amount') != payment_amount_subunits(payment.amount):
+        raise PaymentGatewayError('Gateway payment amount does not match this booking.')
+    if entity.get('status') != 'captured':
+        raise PaymentGatewayError(
+            'Payment is not captured yet. Please wait; the booking will update automatically.'
+        )
 
 
 def mark_payment_completed(
@@ -193,6 +235,14 @@ def mark_payment_completed(
     with transaction.atomic():
         locked_payment = Payment.objects.select_for_update().select_related('booking').get(pk=payment.pk)
         locked_booking = locked_payment.booking
+
+        if locked_payment.status == 'Completed':
+            if locked_payment.transaction_id != transaction_id:
+                raise PaymentGatewayError('This booking already has a different completed payment.')
+            return locked_payment
+
+        if locked_payment.amount != locked_booking.amount:
+            raise PaymentGatewayError('Booking amount changed before payment completion. Please contact support.')
 
         locked_payment.transaction_id = transaction_id
         locked_payment.gateway_payment_id = gateway_payment_id or locked_payment.gateway_payment_id
@@ -230,6 +280,8 @@ def mark_payment_completed(
 
 
 def mark_payment_failed(payment, reason, raw_payload=None):
+    if payment.status == 'Completed':
+        return payment
     payment.status = 'Failed'
     payment.gateway_status = 'failed'
     payment.failure_reason = reason
@@ -260,6 +312,7 @@ def handle_razorpay_webhook_event(payload):
         return None
 
     if event in {'payment.captured', 'order.paid'}:
+        validate_gateway_payment(payment, entity, expected_order_id=order_id)
         return mark_payment_completed(
             payment,
             transaction_id=payment_id or order_id,

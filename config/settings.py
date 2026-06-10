@@ -101,6 +101,7 @@ if USE_CLOUDINARY_MEDIA:
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'config.middleware.BrowserSecurityHeadersMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -224,6 +225,7 @@ SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', not DEBUG)
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', not DEBUG)
+CSRF_COOKIE_SAMESITE = 'Lax'
 SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', not DEBUG)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
@@ -277,6 +279,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ==================== PAYMENT GATEWAY SETTINGS ====================
 
 PAYMENT_GATEWAY_MODE = os.getenv('PAYMENT_GATEWAY_MODE', 'demo').strip().lower()
+ALLOW_DEMO_PAYMENTS = env_bool('ALLOW_DEMO_PAYMENTS', DEBUG)
 RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', '').strip()
 RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', '').strip()
 RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET', '').strip()
@@ -285,6 +288,7 @@ PAYMENT_GATEWAY_ENABLED = (
     and bool(RAZORPAY_KEY_ID)
     and bool(RAZORPAY_KEY_SECRET)
 )
+DEMO_PAYMENTS_ENABLED = PAYMENT_GATEWAY_MODE == 'demo' and ALLOW_DEMO_PAYMENTS
 PLATFORM_COMMISSION_PERCENT = os.getenv('PLATFORM_COMMISSION_PERCENT', '10.00')
 
 

@@ -47,7 +47,7 @@ class BookingRedirectRegressionTests(TestCase):
 		booking = self._create_booking(status='Pending')
 		self.client.login(username='booking_user', password='Pass123!@#')
 
-		response = self.client.get(reverse('bookings:cancel_booking', kwargs={'booking_id': booking.id}))
+		response = self.client.post(reverse('bookings:cancel_booking', kwargs={'booking_id': booking.id}))
 
 		self.assertRedirects(
 			response,
@@ -58,7 +58,7 @@ class BookingRedirectRegressionTests(TestCase):
 		booking = self._create_booking(status='Confirmed')
 		self.client.login(username='booking_user', password='Pass123!@#')
 
-		response = self.client.get(reverse('bookings:cancel_booking', kwargs={'booking_id': booking.id}))
+		response = self.client.post(reverse('bookings:cancel_booking', kwargs={'booking_id': booking.id}))
 
 		self.assertRedirects(
 			response,

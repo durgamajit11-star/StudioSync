@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
+from unittest.mock import patch
 
 from bookings.models import BookingRequest
 from notifications.models import Notification
@@ -11,6 +12,7 @@ from studios.models import Studio
 
 from .models import Payment
 from .services import (
+    PaymentGatewayError,
     complete_demo_payment,
     complete_razorpay_checkout,
     prepare_checkout_payment,
@@ -66,8 +68,14 @@ class PaymentServiceTests(TestCase):
         self.assertTrue(Notification.objects.filter(user=self.user, type='payment_completed').exists())
         self.assertTrue(Notification.objects.filter(user=self.studio_user, type='studio_payment_received').exists())
 
-    @override_settings(RAZORPAY_KEY_SECRET='secret')
-    def test_razorpay_checkout_completion_requires_valid_signature(self):
+    @override_settings(
+        PAYMENT_GATEWAY_ENABLED=True,
+        PAYMENT_GATEWAY_MODE='razorpay',
+        RAZORPAY_KEY_ID='key',
+        RAZORPAY_KEY_SECRET='secret',
+    )
+    @patch('payments.services.fetch_razorpay_payment')
+    def test_razorpay_checkout_completion_requires_valid_signature(self, fetch_payment):
         payment = Payment.objects.create(
             booking=self.booking,
             user=self.user,
@@ -81,6 +89,13 @@ class PaymentServiceTests(TestCase):
             b'order_123|pay_123',
             hashlib.sha256,
         ).hexdigest()
+        fetch_payment.return_value = {
+            'id': 'pay_123',
+            'order_id': 'order_123',
+            'amount': 300000,
+            'currency': 'INR',
+            'status': 'captured',
+        }
 
         complete_razorpay_checkout(payment, 'order_123', 'pay_123', signature)
 
@@ -92,6 +107,46 @@ class PaymentServiceTests(TestCase):
         self.assertEqual(payment.studio_payout_amount, Decimal('2700.00'))
         self.assertEqual(payment.payout_status, 'Ready')
         self.assertEqual(self.booking.payment_status, 'Paid')
+
+    @override_settings(PAYMENT_GATEWAY_ENABLED=False, DEMO_PAYMENTS_ENABLED=False)
+    def test_demo_payment_cannot_be_prepared_when_disabled(self):
+        with self.assertRaisesMessage(Exception, 'Secure checkout is temporarily unavailable'):
+            prepare_checkout_payment(self.booking)
+
+    @override_settings(PAYMENT_GATEWAY_ENABLED=False, DEMO_PAYMENTS_ENABLED=True)
+    def test_repeated_completion_is_idempotent(self):
+        payment = prepare_checkout_payment(self.booking)
+
+        complete_demo_payment(payment, upi_reference='UTR12345678')
+        complete_demo_payment(payment, upi_reference='UTR12345678')
+
+        self.assertEqual(Notification.objects.filter(user=self.user, type='payment_completed').count(), 1)
+        self.assertEqual(Notification.objects.filter(user=self.studio_user, type='studio_payment_received').count(), 1)
+
+    @override_settings(
+        PAYMENT_GATEWAY_ENABLED=True,
+        PAYMENT_GATEWAY_MODE='razorpay',
+        RAZORPAY_KEY_ID='key',
+        RAZORPAY_KEY_SECRET='secret',
+    )
+    def test_tampered_callback_cannot_downgrade_completed_payment(self):
+        payment = Payment.objects.create(
+            booking=self.booking,
+            user=self.user,
+            amount=self.booking.amount,
+            payment_method='UPI',
+            gateway='Razorpay',
+            gateway_order_id='order_123',
+            gateway_payment_id='pay_123',
+            transaction_id='pay_123',
+            status='Completed',
+        )
+
+        with self.assertRaises(PaymentGatewayError):
+            complete_razorpay_checkout(payment, 'wrong_order', 'wrong_payment', 'bad_signature')
+
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, 'Completed')
 
     @override_settings(PAYMENT_GATEWAY_ENABLED=False, PAYMENT_GATEWAY_MODE='demo', PLATFORM_COMMISSION_PERCENT='12.50')
     def test_commission_rate_can_be_configured(self):

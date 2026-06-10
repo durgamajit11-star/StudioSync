@@ -56,6 +56,7 @@ def add_note(request, booking_id):
 
 
 @login_required
+@require_POST
 def cancel_booking(request, booking_id):
     """Cancel a booking"""
     booking = get_object_or_404(BookingRequest, id=booking_id)

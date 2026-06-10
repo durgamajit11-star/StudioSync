@@ -7,10 +7,11 @@
 <link rel="stylesheet" href="{% static 'css/pages/payments/create_payment.css' %}">
 
 <section class="checkout-shell">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <div class="checkout-heading d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
-            <h2 class="fw-bold mb-1">Secure Checkout</h2>
-            <p class="text-secondary mb-0">Choose your payment mode and complete this booking instantly.</p>
+            <div class="security-kicker"><i class="bi bi-shield-lock-fill"></i> Protected checkout</div>
+            <h2 class="fw-bold mb-1">Complete your booking</h2>
+            <p class="text-secondary mb-0">Your amount is verified on our server before the booking is marked paid.</p>
         </div>
         <a href="{% url 'user_bookings' %}" class="btn btn-outline-light btn-sm">
             <i class="bi bi-arrow-left"></i> Back to Bookings
@@ -18,15 +19,22 @@
     </div>
 
     <div class="checkout-grid">
-        <div class="panel">
-            <h5 class="mb-3">Booking Summary</h5>
+        <div class="panel checkout-primary">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Booking Summary</h5>
+                <span class="secure-chip"><i class="bi bi-lock-fill"></i> TLS secured</span>
+            </div>
             <div class="meta-line"><span>Studio</span><strong>{{ booking.studio.studio_name }}</strong></div>
             <div class="meta-line"><span>Event</span><strong>{{ booking.event_type }}</strong></div>
             <div class="meta-line"><span>Date</span><strong>{{ booking.date|date:"d M Y" }}</strong></div>
             <div class="meta-line"><span>Time</span><strong>{{ booking.time_window_display }}</strong></div>
             <div class="meta-line"><span>Duration</span><strong>{{ booking.duration_display }}</strong></div>
             <div class="meta-line"><span>Booking Status</span><strong>{{ booking.status }}</strong></div>
-            <div class="meta-line"><span>Amount</span><strong>&#8377; {{ booking.amount }}</strong></div>
+            <div class="amount-block">
+                <span>Total payable</span>
+                <strong>&#8377; {{ booking.amount }}</strong>
+                <small>Final amount, verified against booking #{{ booking.id }}</small>
+            </div>
             <div class="meta-line"><span>Gateway</span><strong>{{ gateway.provider }}</strong></div>
 
             <hr class="border-secondary">
@@ -35,8 +43,8 @@
             <div class="alert alert-info small">
                 Gateway order is ready. Complete payment in Razorpay and StudioSync will verify it before confirming your booking.
             </div>
-            <button class="btn btn-info w-100" type="button" id="razorpayButton">
-                <i class="bi bi-shield-check"></i> Pay &#8377; {{ booking.amount }}
+            <button class="btn checkout-button w-100" type="button" id="razorpayButton">
+                <i class="bi bi-shield-check"></i> Pay securely &#8377; {{ booking.amount }}
             </button>
             <form method="post" action="{% url 'payments:razorpay_checkout_complete' payment.id %}" id="razorpayResultForm" class="d-none">
                 {% csrf_token %}
@@ -71,14 +79,14 @@
                     </div>
                 </div>
 
-                <button class="btn btn-info w-100" type="submit">
-                    <i class="bi bi-shield-check"></i> Pay &#8377; {{ booking.amount }}
+                <button class="btn checkout-button w-100" type="submit">
+                    <i class="bi bi-shield-check"></i> Confirm demo payment &#8377; {{ booking.amount }}
                 </button>
             </form>
             {% endif %}
         </div>
 
-        <aside class="panel">
+        <aside class="panel trust-panel">
             {% if gateway.enabled %}
             <h5 class="mb-3">Gateway Details</h5>
             <div class="meta-line"><span>Provider</span><strong>Razorpay</strong></div>
@@ -97,6 +105,11 @@
             <a href="{{ upi_payload.upi_qr_url }}" target="_blank" rel="noopener" class="btn btn-outline-light btn-sm w-100">Download QR</a>
             <p class="small text-secondary mt-3 mb-0">For demo environments, payment confirmation is recorded after UTR submission.</p>
             {% endif %}
+            <div class="trust-list">
+                <div><i class="bi bi-check-circle-fill"></i><span>Server-side amount verification</span></div>
+                <div><i class="bi bi-check-circle-fill"></i><span>No card details stored by StudioSync</span></div>
+                <div><i class="bi bi-check-circle-fill"></i><span>Automatic payment reconciliation</span></div>
+            </div>
         </aside>
     </div>
 </section>

@@ -6,9 +6,11 @@ from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db import transaction
 from django.db.models import Sum
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.conf import settings
 
 from .models import Payment, PaymentRefund
 from bookings.models import BookingRequest
@@ -143,6 +145,8 @@ def razorpay_checkout_complete(request, payment_id):
 @csrf_exempt
 @require_POST
 def razorpay_webhook(request):
+    if len(request.body or b'') > settings.DATA_UPLOAD_MAX_MEMORY_SIZE:
+        return JsonResponse({'error': 'payload_too_large'}, status=413)
     signature = request.headers.get('X-Razorpay-Signature', '')
     if not verify_webhook_signature(request.body, signature):
         return HttpResponseBadRequest('Invalid webhook signature')
@@ -152,7 +156,10 @@ def razorpay_webhook(request):
     except json.JSONDecodeError:
         return HttpResponseBadRequest('Invalid webhook payload')
 
-    handle_razorpay_webhook_event(payload)
+    try:
+        handle_razorpay_webhook_event(payload)
+    except PaymentGatewayError:
+        return HttpResponseBadRequest('Webhook payment details did not match')
     return JsonResponse({'ok': True})
 
 
@@ -185,10 +192,10 @@ def request_refund(request, payment_id):
         return redirect('payments:payment_detail', payment_id=payment_id)
     
     if request.method == 'POST':
-        reason = request.POST.get('reason')
+        reason = (request.POST.get('reason') or '').strip()
         amount_raw = request.POST.get('amount', payment.amount)
         
-        if not reason:
+        if not reason or len(reason) < 10:
             messages.error(request, 'Please provide a reason for refund')
             return redirect('payments:request_refund', payment_id=payment_id)
 
@@ -201,23 +208,28 @@ def request_refund(request, payment_id):
             messages.error(request, 'Please enter a valid refund amount')
             return redirect('payments:request_refund', payment_id=payment_id)
 
-        existing = PaymentRefund.objects.filter(payment=payment, status__in=['Requested', 'Approved']).exists()
-        if existing:
-            messages.warning(request, 'A refund request is already in progress for this payment')
-            return redirect('payments:payment_detail', payment_id=payment_id)
-        
         try:
-            refund = PaymentRefund.objects.create(
-                payment=payment,
-                user=request.user,
-                reason=reason,
-                amount=amount,
-                status='Requested'
-            )
+            with transaction.atomic():
+                locked_payment = Payment.objects.select_for_update().get(pk=payment.pk)
+                existing = PaymentRefund.objects.filter(
+                    payment=locked_payment,
+                    status__in=['Requested', 'Approved'],
+                ).exists()
+                if existing:
+                    messages.warning(request, 'A refund request is already in progress for this payment')
+                    return redirect('payments:payment_detail', payment_id=payment_id)
+
+                PaymentRefund.objects.create(
+                    payment=locked_payment,
+                    user=request.user,
+                    reason=reason,
+                    amount=amount,
+                    status='Requested'
+                )
             messages.success(request, 'Refund request submitted!')
             return redirect('payments:payment_detail', payment_id=payment_id)
-        except Exception as e:
-            messages.error(request, f'Error submitting refund: {str(e)}')
+        except Exception:
+            messages.error(request, 'Unable to submit the refund request. Please try again.')
             return redirect('payments:payment_detail', payment_id=payment_id)
     
     context = {'payment': payment}
